@@ -1,0 +1,41 @@
+# Documentación Técnica Actualizada: ERP + POS Hunger Car Wash
+
+## 1. Arquitectura de Base de Datos (Modelos)
+
+### Vehículo
+- `id`: UUID
+- `placa`: String (Indexado)
+- `marca`: String
+- `modelo`: String
+- `tamano`: Enum (Carro Chico, Carro Mediano, Camioneta Mediana, Camioneta Grande, Van)
+- `cliente_id`: UUID (Relación)
+
+### Precios de Lavado Normal (Base)
+- Carro Chico: $110
+- Carro Mediano: $115
+- Camioneta Mediana: $120
+- Camioneta Grande: $140
+- Van: $180
+
+### Paquete Premium (Adicional)
+- Costo: +$100 sobre precio base.
+- Incluye: Cera para pintura, Armor All (protector) en plásticos internos, Líquido para restaurar plásticos oscuros.
+
+## 2. Lógica de Negocio (Precios Dinámicos)
+```javascript
+const preciosBase = {
+  'Carro Chico': 110,
+  'Carro Mediano': 115,
+  'Camioneta Mediana': 120,
+  'Camioneta Grande': 140,
+  'Van': 180
+};
+
+function calcularTotal(tipoVehiculo, esPremium) {
+  let total = preciosBase[tipoVehiculo] || 0;
+  if (esPremium) {
+    total += 100;
+  }
+  return total;
+}
+```

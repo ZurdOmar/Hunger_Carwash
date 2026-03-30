@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hunger Car Wash - Dashboard Administrativo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary-container": "#424444",
+                        "on-primary": "#00354a",
+                        "surface-container-high": "#222a3d",
+                        "on-secondary-fixed-variant": "#39485a",
+                        "on-surface-variant": "#bdc8d1",
+                        "surface-container-highest": "#2d3449",
+                        "outline-variant": "#3e484f",
+                        "primary": "#8ed5ff",
+                        "surface-tint": "#7bd0ff",
+                        "secondary-container": "#39485a",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed": "#001e2c",
+                        "inverse-on-surface": "#283044",
+                        "surface": "#0b1326",
+                        "secondary-fixed": "#d4e4fa",
+                        "secondary": "#b9c8de",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-secondary": "#233143",
+                        "surface-container-low": "#131b2e",
+                        "on-surface": "#dae2fd",
+                        "outline": "#87929a",
+                        "background": "#0b1326",
+                        "on-secondary-container": "#a7b6cc",
+                        "surface-dim": "#0b1326",
+                        "surface-bright": "#31394d",
+                        "secondary-fixed-dim": "#b9c8de",
+                        "error-container": "#93000a",
+                        "on-primary-container": "#004965",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "surface-container-lowest": "#060e20",
+                        "inverse-surface": "#dae2fd",
+                        "primary-fixed-dim": "#7bd0ff",
+                        "tertiary-container": "#b0b1b1",
+                        "tertiary": "#cccccc",
+                        "inverse-primary": "#00668a",
+                        "on-tertiary": "#2f3131",
+                        "on-secondary-fixed": "#0d1c2d",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-background": "#dae2fd",
+                        "surface-variant": "#2d3449",
+                        "surface-container": "#171f33",
+                        "on-primary-fixed-variant": "#004c69",
+                        "primary-container": "#38bdf8",
+                        "error": "#ffb4ab",
+                        "primary-fixed": "#c4e7ff"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(23, 31, 51, 0.7);
+            backdrop-filter: blur(16px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary/30">
+<!-- Sidebar Navigation -->
+<aside class="h-screen w-72 fixed left-0 top-0 z-40 bg-[#060e20] border-r border-[#1a233a] shadow-2xl shadow-black flex flex-col h-full py-8 hidden md:flex">
+<div class="px-4 mb-8 flex flex-col items-center">
+<img alt="Logo Hunger Car Wash" class="w-full max-w-[200px] aspect-square object-contain" src="https://lh3.googleusercontent.com/aida/ADBb0ujD3m_5QLh9jZIo0cYJv0j7bautI6zs1BZ2YiseHis5bnSRfsK9f_bfEP1SeQ51-vAiSzTJBRlcNf6_D1pJLHC6VJjk648wwMLY9pg31gFMNnlVGMigBfnf7Zjzi3iY-95GYsxSnazbJEb0KQOn798zL6TIw2nQHO_mougWaW1QvpjoJTyYGhjASNSDPzU6QZjXVIbRnvhanWux5_XE0xgSEZXDQLr5bLPo5DEU3juHN_eseG9p8FcnGePOeheBbdXjGBb8nL4rnYk"/>
+</div>
+<nav class="flex-1">
+<ul class="space-y-1">
+<li>
+<a class="bg-gradient-to-r from-[#38bdf8]/20 to-transparent text-[#8ed5ff] border-l-4 border-[#8ed5ff] py-4 px-6 flex items-center gap-4 transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label text-sm uppercase tracking-wider">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="text-slate-500 py-4 px-6 flex items-center gap-4 hover:bg-[#1a233a] hover:text-white transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="point_of_sale">point_of_sale</span>
+<span class="font-label text-sm uppercase tracking-wider">POS</span>
+</a>
+</li>
+<li>
+<a class="text-slate-500 py-4 px-6 flex items-center gap-4 hover:bg-[#1a233a] hover:text-white transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="view_kanban">view_kanban</span>
+<span class="font-label text-sm uppercase tracking-wider">Kanban</span>
+</a>
+</li>
+<li>
+<a class="text-slate-500 py-4 px-6 flex items-center gap-4 hover:bg-[#1a233a] hover:text-white transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label text-sm uppercase tracking-wider">Clientes</span>
+</a>
+</li>
+<li>
+<a class="text-slate-500 py-4 px-6 flex items-center gap-4 hover:bg-[#1a233a] hover:text-white transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-label text-sm uppercase tracking-wider">Reportes</span>
+</a>
+</li>
+</ul>
+</nav>
+<div class="px-6 mb-6">
+<button class="w-full h-16 bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+<span>Nuevo Lavado</span>
+</button>
+</div>
+<div class="border-t border-[#1a233a] pt-4">
+<a class="text-slate-500 py-3 px-6 flex items-center gap-4 hover:text-[#8ed5ff] transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label text-sm uppercase tracking-wider">Configuración</span>
+</a>
+<a class="text-slate-500 py-3 px-6 flex items-center gap-4 hover:text-[#8ed5ff] transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-label text-sm uppercase tracking-wider">Ayuda</span>
+</a>
+</div>
+</aside>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 right-0 left-0 md:left-72 z-50 bg-[#0b1326]/80 backdrop-blur-md shadow-lg shadow-blue-900/20">
+<div class="flex justify-between items-center px-6 py-4 w-full h-20">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary/50 text-sm text-on-surface" placeholder="Buscar servicios o clientes..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden sm:flex gap-3 mr-4">
+<button class="px-4 py-2 rounded-lg bg-surface-container-high text-primary font-bold text-xs uppercase tracking-widest active:scale-95 transition-transform">Cerrar Turno</button>
+<button class="px-4 py-2 rounded-lg bg-primary text-on-primary font-bold text-xs uppercase tracking-widest active:scale-95 transition-transform">Abrir Caja</button>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-400 hover:bg-white/5 rounded-full transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-2 text-slate-400 hover:bg-white/5 rounded-full transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="w-[1px] h-8 bg-[#1a233a] mx-2"></div>
+<div class="flex items-center gap-3 pl-2">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-on-surface">Alex Rivero</p>
+<p class="text-[10px] text-slate-500 uppercase">Cajero Senior</p>
+</div>
+<img alt="Foto de perfil del cajero" class="w-10 h-10 rounded-full border-2 border-primary/30 object-cover" data-alt="professional portrait of a young male service manager with a friendly expression" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEwziJNME4ZaVZHHUHH2K4TA1vZQhlNkMtg_Yjk0HuyysPbDlmPIZ6JIG-DdLcvckmNURWn2rUTmFO7zNnZe5sPnq3Uddo9LtAcyjBQc21zSO72im_XfJXEDZs44ButkaNRzfk0W93LCC545knqXtj_IBMyLBkpwryMjdLM-r9aVzH3OK7KT60GbMcawLW2i_RbNSAlkjLYYL4hwbhI6WZdM6RG9OcUIen6MbII3lSUSiJ_XkfdOdQje7RB3O349mD9d2xGKbgm5uQ"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="pt-24 pb-12 px-6 md:pl-80">
+<!-- Header Section -->
+<div class="mb-10">
+<h2 class="font-headline text-4xl font-bold text-on-surface tracking-tight mb-2">Resumen Ejecutivo</h2>
+<p class="text-slate-400 font-medium">Visualización de rendimiento en tiempo real para Hunger Car Wash.</p>
+</div>
+<!-- KPI Grid (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+<!-- KPI: Ingresos -->
+<div class="bg-surface-container-low p-6 rounded-2xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl" style="font-variation-settings: 'FILL' 1;">payments</span>
+</div>
+<p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Ingresos de hoy</p>
+<div class="flex items-end gap-2">
+<h3 class="font-headline text-3xl font-bold text-primary">$1,245.50</h3>
+<span class="text-emerald-400 text-xs font-bold mb-1 flex items-center">+12% <span class="material-symbols-outlined text-sm">trending_up</span></span>
+</div>
+</div>
+<!-- KPI: Autos -->
+<div class="bg-surface-container-low p-6 rounded-2xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl" style="font-variation-settings: 'FILL' 1;">directions_car</span>
+</div>
+<p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Total autos</p>
+<div class="flex items-end gap-2">
+<h3 class="font-headline text-3xl font-bold text-on-surface">42</h3>
+<span class="text-emerald-400 text-xs font-bold mb-1 flex items-center">+5 <span class="material-symbols-outlined text-sm">expand_less</span></span>
+</div>
+</div>
+<!-- KPI: Ticket Promedio -->
+<div class="bg-surface-container-low p-6 rounded-2xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl" style="font-variation-settings: 'FILL' 1;">confirmation_number</span>
+</div>
+<p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Ticket promedio</p>
+<div class="flex items-end gap-2">
+<h3 class="font-headline text-3xl font-bold text-on-surface">$29.65</h3>
+<span class="text-slate-500 text-xs font-bold mb-1">Estable</span>
+</div>
+</div>
+<!-- KPI: Tiempo Promedio -->
+<div class="bg-surface-container-low p-6 rounded-2xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl" style="font-variation-settings: 'FILL' 1;">timer</span>
+</div>
+<p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Tiempo Lavado</p>
+<div class="flex items-end gap-2">
+<h3 class="font-headline text-3xl font-bold text-error">24 min</h3>
+<span class="text-error text-xs font-bold mb-1 flex items-center">+3m <span class="material-symbols-outlined text-sm">trending_up</span></span>
+</div>
+</div>
+</div>
+<!-- Charts Section (Asymmetric Grid) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-10">
+<!-- Bar Chart: Peak Hours (Span 7) -->
+<div class="lg:col-span-7 bg-surface-container-low p-8 rounded-2xl">
+<div class="flex justify-between items-center mb-10">
+<h4 class="font-headline text-xl font-bold text-on-surface">Horas pico de autos</h4>
+<div class="flex gap-2">
+<button class="text-[10px] px-3 py-1 bg-surface-container-highest text-primary rounded-full font-bold uppercase">Hoy</button>
+<button class="text-[10px] px-3 py-1 text-slate-500 hover:text-on-surface transition-colors font-bold uppercase">Semana</button>
+</div>
+</div>
+<div class="h-64 flex items-end justify-between gap-4">
+<!-- Custom Bar Chart UI -->
+<div class="flex-1 flex flex-col items-center gap-2 group">
+<div class="w-full bg-surface-container-highest rounded-t-lg transition-all duration-500 group-hover:bg-primary-container" style="height: 40%"></div>
+<span class="text-[10px] text-slate-500 font-bold uppercase">08 AM</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 group">
+<div class="w-full bg-surface-container-highest rounded-t-lg transition-all duration-500 group-hover:bg-primary-container" style="height: 65%"></div>
+<span class="text-[10px] text-slate-500 font-bold uppercase">10 AM</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 group">
+<div class="w-full bg-primary rounded-t-lg transition-all duration-500" style="height: 95%"></div>
+<span class="text-[10px] text-primary font-bold uppercase">12 PM</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 group">
+<div class="w-full bg-surface-container-highest rounded-t-lg transition-all duration-500 group-hover:bg-primary-container" style="height: 80%"></div>
+<span class="text-[10px] text-slate-500 font-bold uppercase">02 PM</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 group">
+<div class="w-full bg-surface-container-highest rounded-t-lg transition-all duration-500 group-hover:bg-primary-container" style="height: 50%"></div>
+<span class="text-[10px] text-slate-500 font-bold uppercase">04 PM</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 group">
+<div class="w-full bg-surface-container-highest rounded-t-lg transition-all duration-500 group-hover:bg-primary-container" style="height: 70%"></div>
+<span class="text-[10px] text-slate-500 font-bold uppercase">06 PM</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-2 group">
+<div class="w-full bg-surface-container-highest rounded-t-lg transition-all duration-500 group-hover:bg-primary-container" style="height: 30%"></div>
+<span class="text-[10px] text-slate-500 font-bold uppercase">08 PM</span>
+</div>
+</div>
+</div>
+<!-- Donut Chart: Service Distribution (Span 5) -->
+<div class="lg:col-span-5 bg-surface-container-low p-8 rounded-2xl flex flex-col">
+<h4 class="font-headline text-xl font-bold text-on-surface mb-8">Distribución de servicios</h4>
+<div class="flex-1 flex items-center justify-center relative mb-8">
+<!-- SVG Donut Representation -->
+<svg class="w-48 h-48 -rotate-90">
+<circle cx="96" cy="96" fill="transparent" r="80" stroke="#2d3449" stroke-width="12"></circle>
+<circle cx="96" cy="96" fill="transparent" r="80" stroke="#8ed5ff" stroke-dasharray="502" stroke-dashoffset="150" stroke-linecap="round" stroke-width="12"></circle>
+<circle cx="96" cy="96" fill="transparent" r="80" stroke="#38bdf8" stroke-dasharray="502" stroke-dashoffset="400" stroke-linecap="round" stroke-width="12"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-3xl font-headline font-bold text-on-surface">100%</span>
+<span class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Capacidad</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-primary"></span>
+<span class="text-xs text-slate-400 font-medium">Lavado Express (45%)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-primary-container"></span>
+<span class="text-xs text-slate-400 font-medium">Premium (30%)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-surface-container-highest"></span>
+<span class="text-xs text-slate-400 font-medium">Integral (25%)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Performance Table Section -->
+<div class="bg-surface-container-low rounded-2xl overflow-hidden">
+<div class="p-8 flex justify-between items-center">
+<h4 class="font-headline text-xl font-bold text-on-surface">Rendimiento de Empleados</h4>
+<button class="text-primary text-sm font-bold flex items-center gap-1 hover:underline">Ver reporte completo <span class="material-symbols-outlined text-sm">arrow_forward</span></button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest">
+<th class="px-8 py-4 font-label text-[10px] uppercase tracking-widest text-slate-500">Empleado</th>
+<th class="px-8 py-4 font-label text-[10px] uppercase tracking-widest text-slate-500">Lavados</th>
+<th class="px-8 py-4 font-label text-[10px] uppercase tracking-widest text-slate-500">Promedio Tiempo</th>
+<th class="px-8 py-4 font-label text-[10px] uppercase tracking-widest text-slate-500">Eficiencia</th>
+<th class="px-8 py-4 font-label text-[10px] uppercase tracking-widest text-slate-500">Puntuación</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#1a233a]">
+<tr class="hover:bg-white/5 transition-colors">
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<img alt="Avatar Empleado" class="w-10 h-10 rounded-full object-cover" data-alt="portrait of a focused professional car detailer in a clean dark uniform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeUFt4Zb2LG-kg67m_Ti4aleHa_wVwKeAIsJixNt6F_3Z94ujuNruvmfHLFI0BpeIsxcIqJvA48UkTLVzg7nXqTJVh4XoZ9BL8d2ujeN7yaAhLcsZM-b4XpxoJ8SsCiTRs735AUnTDqwUkIA57HdY-aegldyXYv4urr1kItz-Z3I8J569-DFNcdwsk4EuEWZBAuPTXZLhd55_-jjeak8Zr-C0l4RHmCzHV0bcExul3o7kNBAQq9shC9TjRi9ZmjCZltcvJG2BxlE84"/>
+<div>
+<p class="text-sm font-bold text-on-surface">Marcos Torres</p>
+<p class="text-[10px] text-slate-500 uppercase">Detallador Lead</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 font-headline text-sm font-medium text-on-surface">18</td>
+<td class="px-8 py-5 font-headline text-sm font-medium text-on-surface">19 min</td>
+<td class="px-8 py-5">
+<div class="w-full max-w-[100px] h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 92%"></div>
+</div>
+</td>
+<td class="px-8 py-5">
+<div class="flex text-primary">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 0;">star</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors">
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<img alt="Avatar Empleado" class="w-10 h-10 rounded-full object-cover" data-alt="headshot of a young professional worker in service industry attire" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDX_eWS4RA5Jd8x2beBQjh9Ui9P5mS7VaX9gioIcLAaS1pXEbzhKuzofabaPq3nZXW-Jt71fKckh57znDn376prYWq_vH1SXNA4WhdpNCl-YlFfxI1XFfFivWzTVmJWJWdTdcCG28oDy6EQeGIyFe4blBOnTn6syGBNJzxU_LEXiNPqObFoV92SIPA5vZ9djiS-0rWUxj29F2FyELxeSed3r-TvkbhkrVbvg0bHe9ZlLt5vGxEb6qOOBmvslxVEBW7BWpAfWs88obxG"/>
+<div>
+<p class="text-sm font-bold text-on-surface">Lucía Mendoza</p>
+<p class="text-[10px] text-slate-500 uppercase">Operadora</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 font-headline text-sm font-medium text-on-surface">14</td>
+<td class="px-8 py-5 font-headline text-sm font-medium text-on-surface">22 min</td>
+<td class="px-8 py-5">
+<div class="w-full max-w-[100px] h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 85%"></div>
+</div>
+</td>
+<td class="px-8 py-5">
+<div class="flex text-primary">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 0;">star</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors">
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<img alt="Avatar Empleado" class="w-10 h-10 rounded-full object-cover" data-alt="professional portrait of a service specialist in an industrial setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8913KHpKwy4PkfJEHfGm8vhtv-WwYH_onDi9s4zsvbBjzvP0IavR3k-L4yV9tPYeIBhomhqT2ZnkhPK_ccMVKC0MHNrAAgJSThRnqVWcEyNxu04kuZB-6laZq9OOyvc7zCfUZP1b7twWQuKZxmumStmiBtUqbLsDk-blxbsGOeVmV_JBUckiu2MHrgn3-Koal983dv0qay8bC1piY5hkHnqy2X64TGvkr9xZ2HaV1CAS3aDu2T9gMH27hxeowJSe0ArBzOWmkQK5w"/>
+<div>
+<p class="text-sm font-bold text-on-surface">Elena Rivas</p>
+<p class="text-[10px] text-slate-500 uppercase">Interna</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 font-headline text-sm font-medium text-on-surface">10</td>
+<td class="px-8 py-5 font-headline text-sm font-medium text-on-surface">31 min</td>
+<td class="px-8 py-5">
+<div class="w-full max-w-[100px] h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-error" style="width: 60%"></div>
+</div>
+</td>
+<td class="px-8 py-5">
+<div class="flex text-primary">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 0;">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 0;">star</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+<!-- Mobile Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 md:hidden bg-[#0b1326]/90 backdrop-blur-xl border-t border-[#1a233a] flex justify-around items-center py-3 z-50">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] font-bold uppercase">Inicio</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined">point_of_sale</span>
+<span class="text-[10px] font-bold uppercase">Caja</span>
+</a>
+<div class="-mt-8">
+<button class="w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg shadow-primary/40 flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-bold uppercase">Clientes</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-bold uppercase">Perfil</span>
+</a>
+</nav>
+</body></html>

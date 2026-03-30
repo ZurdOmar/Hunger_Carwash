@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hunger Car Wash - Kanban de Seguimiento</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary-container": "#424444",
+                        "on-primary": "#00354a",
+                        "surface-container-high": "#222a3d",
+                        "on-secondary-fixed-variant": "#39485a",
+                        "on-surface-variant": "#bdc8d1",
+                        "surface-container-highest": "#2d3449",
+                        "outline-variant": "#3e484f",
+                        "primary": "#8ed5ff",
+                        "surface-tint": "#7bd0ff",
+                        "secondary-container": "#39485a",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed": "#001e2c",
+                        "inverse-on-surface": "#283044",
+                        "surface": "#0b1326",
+                        "secondary-fixed": "#d4e4fa",
+                        "secondary": "#b9c8de",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-secondary": "#233143",
+                        "surface-container-low": "#131b2e",
+                        "on-surface": "#dae2fd",
+                        "outline": "#87929a",
+                        "background": "#0b1326",
+                        "on-secondary-container": "#a7b6cc",
+                        "surface-dim": "#0b1326",
+                        "surface-bright": "#31394d",
+                        "secondary-fixed-dim": "#b9c8de",
+                        "error-container": "#93000a",
+                        "on-primary-container": "#004965",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "surface-container-lowest": "#060e20",
+                        "inverse-surface": "#dae2fd",
+                        "primary-fixed-dim": "#7bd0ff",
+                        "tertiary-container": "#b0b1b1",
+                        "tertiary": "#cccccc",
+                        "inverse-primary": "#00668a",
+                        "on-tertiary": "#2f3131",
+                        "on-secondary-fixed": "#0d1c2d",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-background": "#dae2fd",
+                        "surface-variant": "#2d3449",
+                        "surface-container": "#171f33",
+                        "on-primary-fixed-variant": "#004c69",
+                        "primary-container": "#38bdf8",
+                        "error": "#ffb4ab",
+                        "primary-fixed": "#c4e7ff"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #060e20;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d3449;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary selection:text-on-primary overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="h-screen w-72 fixed left-0 top-0 z-40 bg-[#060e20] border-r border-[#1a233a] shadow-2xl shadow-black flex flex-col py-8 hidden md:flex">
+<div class="px-4 mb-8 flex flex-col items-center">
+<img alt="Logo Hunger Car Wash" class="w-full max-w-[200px] aspect-square object-contain" src="https://lh3.googleusercontent.com/aida/ADBb0ujD3m_5QLh9jZIo0cYJv0j7bautI6zs1BZ2YiseHis5bnSRfsK9f_bfEP1SeQ51-vAiSzTJBRlcNf6_D1pJLHC6VJjk648wwMLY9pg31gFMNnlVGMigBfnf7Zjzi3iY-95GYsxSnazbJEb0KQOn798zL6TIw2nQHO_mougWaW1QvpjoJTyYGhjASNSDPzU6QZjXVIbRnvhanWux5_XE0xgSEZXDQLr5bLPo5DEU3juHN_eseG9p8FcnGePOeheBbdXjGBb8nL4rnYk"/>
+</div>
+<nav class="flex-1">
+<ul class="space-y-1">
+<li>
+<a class="text-slate-500 py-4 px-6 flex items-center gap-4 hover:bg-[#1a233a] hover:text-white transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label text-sm uppercase tracking-wider">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="text-slate-500 py-4 px-6 flex items-center gap-4 hover:bg-[#1a233a] hover:text-white transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="point_of_sale">point_of_sale</span>
+<span class="font-label text-sm uppercase tracking-wider">POS</span>
+</a>
+</li>
+<li>
+<a class="bg-gradient-to-r from-[#38bdf8]/20 to-transparent text-[#8ed5ff] border-l-4 border-[#8ed5ff] py-4 px-6 flex items-center gap-4 transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="view_kanban">view_kanban</span>
+<span class="font-label text-sm uppercase tracking-wider">Kanban</span>
+</a>
+</li>
+<li>
+<a class="text-slate-500 py-4 px-6 flex items-center gap-4 hover:bg-[#1a233a] hover:text-white transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label text-sm uppercase tracking-wider">Clientes</span>
+</a>
+</li>
+<li>
+<a class="text-slate-500 py-4 px-6 flex items-center gap-4 hover:bg-[#1a233a] hover:text-white transition-all active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-label text-sm uppercase tracking-wider">Reportes</span>
+</a>
+</li>
+</ul>
+</nav>
+<div class="px-6 mb-6">
+<button class="w-full h-16 bg-gradient-to-r from-primary to-primary-container text-on-primary font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+<span>Nuevo Lavado</span>
+</button>
+</div>
+<div class="border-t border-[#1a233a] pt-4">
+<a class="text-slate-500 py-3 px-6 flex items-center gap-4 hover:text-[#8ed5ff] transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label text-sm uppercase tracking-wider">Configuración</span>
+</a>
+<a class="text-slate-500 py-3 px-6 flex items-center gap-4 hover:text-[#8ed5ff] transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-label text-sm uppercase tracking-wider">Ayuda</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="md:ml-72 min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 right-0 left-0 md:left-72 z-50 bg-[#0b1326]/80 backdrop-blur-md shadow-lg shadow-blue-900/20">
+<div class="flex justify-between items-center px-6 py-4 w-full h-20">
+<div class="flex items-center gap-8">
+<div class="relative w-full max-w-md hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary/50 text-sm text-on-surface" placeholder="Buscar placa o cliente..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden sm:flex gap-3 mr-4">
+<button class="px-4 py-2 rounded-lg bg-surface-container-high text-primary font-bold text-xs uppercase tracking-widest active:scale-95 transition-transform">Abrir Caja</button>
+<button class="px-4 py-2 rounded-lg bg-surface-container-high text-slate-400 font-bold text-xs uppercase tracking-widest active:scale-95 transition-transform">Cerrar Turno</button>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-400 hover:bg-white/5 rounded-full transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-2 text-slate-400 hover:bg-white/5 rounded-full transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="w-[1px] h-8 bg-[#1a233a] mx-2"></div>
+<div class="flex items-center gap-3 pl-2">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-on-surface">Alex Rivero</p>
+<p class="text-[10px] text-slate-500 uppercase">Administrador</p>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-primary/30 overflow-hidden">
+<img alt="Perfil" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD99DZo_z_hKPiQ7meI9mfxcg640SJj1si5u6c_fkVCBUM4Uxse3fg20ibpGnPpjgKqz-irRqDPiXBrf1CnJkBXO0M_lOyVjKosyaNfKzDyXQLBxDwsVU1hDBDyPekAscOr29RwgRACtU9J9KWtvDlF8QofHtEvL7vo1PHwMmstZOXr17v48jIC4g_gtubeI0PGlMdg6acBvanTE7NSlk69wvlJFqPYtm0BsVcgIIo74Fz3tsAYxDNfXRUhLQ-L1Iwzwusgu2uTrFey"/>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Kanban Board Section -->
+<section class="mt-20 p-8 flex-1 flex flex-col overflow-hidden">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="text-4xl font-headline font-bold text-on-surface leading-none tracking-tighter">Tablero Kanban</h2>
+<p class="text-slate-400 font-body mt-2">Seguimiento en tiempo real de operaciones</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-container-low text-on-surface-variant flex items-center gap-2 px-6 py-2.5 rounded-xl border border-outline-variant/20 hover:bg-surface-container-high transition-colors font-bold text-sm uppercase tracking-wider">
+<span class="material-symbols-outlined text-lg" data-icon="filter_list">filter_list</span>
+                        Filtros
+                    </button>
+<button class="bg-surface-container-low text-on-surface-variant flex items-center gap-2 px-6 py-2.5 rounded-xl border border-outline-variant/20 hover:bg-surface-container-high transition-colors font-bold text-sm uppercase tracking-wider">
+<span class="material-symbols-outlined text-lg" data-icon="sort">sort</span>
+                        Prioridad
+                    </button>
+</div>
+</div>
+<!-- Kanban Grid -->
+<div class="flex-1 grid grid-cols-4 gap-6 overflow-x-auto pb-4">
+<!-- RECEPCIÓN Column -->
+<div class="flex flex-col min-w-[320px]">
+<div class="flex items-center justify-between mb-4 px-2">
+<div class="flex items-center gap-3">
+<span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+<h3 class="font-headline font-bold text-lg text-on-surface uppercase tracking-widest">RECEPCIÓN</h3>
+</div>
+<span class="bg-surface-container-high text-slate-300 text-xs px-2 py-1 rounded-md font-bold">02</span>
+</div>
+<div class="flex-1 bg-surface-container-low/30 rounded-3xl p-4 space-y-4 overflow-y-auto">
+<!-- Card 1 -->
+<div class="group bg-surface-container-high/80 rounded-2xl p-5 border-l-4 border-primary shadow-lg hover:scale-[1.02] transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-black tracking-widest text-primary uppercase">Premium Plus</span>
+<span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="schedule">schedule</span> 08:45 AM
+                                </span>
+</div>
+<h4 class="text-3xl font-headline font-bold text-on-surface mb-1">ABC-123</h4>
+<p class="text-slate-300 text-sm font-medium mb-4">Tesla Model 3 - Negro</p>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-lg" data-icon="timer">timer</span>
+<span class="font-mono text-base font-bold">12:45</span>
+</div>
+<button class="p-2 bg-surface-container-highest text-primary rounded-lg hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="qr_code_2">qr_code_2</span>
+</button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group bg-surface-container-high/80 rounded-2xl p-5 border-l-4 border-outline-variant shadow-lg hover:scale-[1.02] transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-black tracking-widest text-slate-400 uppercase">Express</span>
+<span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="schedule">schedule</span> 09:12 AM
+                                </span>
+</div>
+<h4 class="text-3xl font-headline font-bold text-on-surface mb-1">XYZ-987</h4>
+<p class="text-slate-300 text-sm font-medium mb-4">Mazda CX-5 - Rojo</p>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+<div class="flex items-center gap-2 text-slate-400">
+<span class="material-symbols-outlined text-lg" data-icon="timer">timer</span>
+<span class="font-mono text-base font-bold">05:22</span>
+</div>
+<button class="p-2 bg-surface-container-highest text-primary rounded-lg hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="qr_code_2">qr_code_2</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- LAVADO Column -->
+<div class="flex flex-col min-w-[320px]">
+<div class="flex items-center justify-between mb-4 px-2">
+<div class="flex items-center gap-3">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
+<h3 class="font-headline font-bold text-lg text-on-surface uppercase tracking-widest">LAVADO</h3>
+</div>
+<span class="bg-surface-container-high text-slate-300 text-xs px-2 py-1 rounded-md font-bold">01</span>
+</div>
+<div class="flex-1 bg-surface-container-low/30 rounded-3xl p-4 space-y-4 overflow-y-auto">
+<!-- Card 1 -->
+<div class="group bg-surface-container-high/80 rounded-2xl p-5 border-l-4 border-error shadow-lg shadow-error/10 hover:scale-[1.02] transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-black tracking-widest text-error uppercase">Prioridad Alta</span>
+<span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="waves">waves</span> Estación 1
+                                </span>
+</div>
+<h4 class="text-3xl font-headline font-bold text-on-surface mb-1">FGT-554</h4>
+<p class="text-slate-300 text-sm font-medium mb-4">Audi RS6 - Gris</p>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+<div class="flex items-center gap-2 text-error animate-pulse">
+<span class="material-symbols-outlined text-lg" data-icon="timer">timer</span>
+<span class="font-mono text-base font-bold">28:15</span>
+</div>
+<button class="p-2 bg-surface-container-highest text-primary rounded-lg hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="qr_code_2">qr_code_2</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- SECADO/DETALLADO Column -->
+<div class="flex flex-col min-w-[320px]">
+<div class="flex items-center justify-between mb-4 px-2">
+<div class="flex items-center gap-3">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<h3 class="font-headline font-bold text-lg text-on-surface uppercase tracking-widest">SECADO/DETALLADO</h3>
+</div>
+<span class="bg-surface-container-high text-slate-300 text-xs px-2 py-1 rounded-md font-bold">02</span>
+</div>
+<div class="flex-1 bg-surface-container-low/30 rounded-3xl p-4 space-y-4 overflow-y-auto">
+<div class="group bg-surface-container-high/80 rounded-2xl p-5 border-l-4 border-primary shadow-lg hover:scale-[1.02] transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-black tracking-widest text-primary uppercase">Cerámico</span>
+<span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="dry">dry</span> Estación 3
+                                </span>
+</div>
+<h4 class="text-3xl font-headline font-bold text-on-surface mb-1">KLL-112</h4>
+<p class="text-slate-300 text-sm font-medium mb-4">Porsche 911 - Blanco</p>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-lg" data-icon="timer">timer</span>
+<span class="font-mono text-base font-bold">45:00</span>
+</div>
+<button class="p-2 bg-surface-container-highest text-primary rounded-lg hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="qr_code_2">qr_code_2</span>
+</button>
+</div>
+</div>
+<div class="group bg-surface-container-high/80 rounded-2xl p-5 border-l-4 border-outline-variant shadow-lg hover:scale-[1.02] transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-black tracking-widest text-slate-400 uppercase">Integral</span>
+<span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="dry">dry</span> Estación 4
+                                </span>
+</div>
+<h4 class="text-3xl font-headline font-bold text-on-surface mb-1">MNO-443</h4>
+<p class="text-slate-300 text-sm font-medium mb-4">BMW X5 - Azul</p>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+<div class="flex items-center gap-2 text-slate-400">
+<span class="material-symbols-outlined text-lg" data-icon="timer">timer</span>
+<span class="font-mono text-base font-bold">18:30</span>
+</div>
+<button class="p-2 bg-surface-container-highest text-primary rounded-lg hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="qr_code_2">qr_code_2</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- LISTO Column -->
+<div class="flex flex-col min-w-[320px]">
+<div class="flex items-center justify-between mb-4 px-2">
+<div class="flex items-center gap-3">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+<h3 class="font-headline font-bold text-lg text-on-surface uppercase tracking-widest">LISTO</h3>
+</div>
+<span class="bg-surface-container-high text-slate-300 text-xs px-2 py-1 rounded-md font-bold">01</span>
+</div>
+<div class="flex-1 bg-surface-container-low/30 rounded-3xl p-4 space-y-4 overflow-y-auto">
+<div class="group bg-surface-container-high/40 rounded-2xl p-5 border-l-4 border-emerald-400/50 shadow-lg hover:scale-[1.02] transition-all cursor-pointer opacity-80">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-black tracking-widest text-emerald-400 uppercase">Completado</span>
+<span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="check_circle">check_circle</span> 10:05 AM
+                                </span>
+</div>
+<h4 class="text-3xl font-headline font-bold text-on-surface mb-1">HJK-778</h4>
+<p class="text-slate-300 text-sm font-medium mb-4">VW Golf GTI - Blanco</p>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+<div class="flex items-center gap-2 text-emerald-400">
+<span class="material-symbols-outlined text-lg" data-icon="task_alt">task_alt</span>
+<span class="font-mono text-base font-bold">00:00</span>
+</div>
+<button class="px-4 py-2 bg-emerald-400 text-slate-900 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-emerald-300 transition-colors">Entregar</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating QR Preview Modal -->
+<div class="fixed bottom-8 right-8 z-50 pointer-events-none">
+<div class="glass-panel bg-primary/10 border border-primary/20 p-6 rounded-3xl shadow-2xl flex items-center gap-6 pointer-events-auto group hover:translate-y-[-4px] transition-transform">
+<div class="w-24 h-24 bg-white p-2 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-6xl text-slate-900" data-icon="qr_code_2">qr_code_2</span>
+</div>
+<div>
+<h5 class="text-primary font-bold font-headline">Compartir Seguimiento</h5>
+<p class="text-slate-400 text-xs mt-1">Escanee para ver el estado en vivo</p>
+<div class="flex gap-2 mt-3">
+<button class="bg-primary text-on-primary px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform">Imprimir Ticket</button>
+<button class="bg-surface-container-highest text-primary px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform">Enviar SMS</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

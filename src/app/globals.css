@@ -1,26 +1,107 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Default Palettes - Velocity Blue */
+  --hue: 199;
+  --saturation: 89%;
+  
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  
+  --primary: var(--hue) var(--saturation) 48%;
+  --primary-foreground: 222 47% 11%;
+  
+  --secondary: 217 32% 17%;
+  --secondary-foreground: 210 40% 98%;
+  
+  --accent: 48 96% 53%;
+  --accent-foreground: 222 47% 11%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  
+  --muted: 217 32% 17%;
+  --muted-foreground: 215 20% 65%;
+  
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  
+  --border: var(--hue) var(--saturation) 48% / 0.2;
+  --input: var(--hue) var(--saturation) 48% / 0.1;
+  --ring: var(--hue) var(--saturation) 48%;
+  
+  --radius: 0.75rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Light Mode Overrides */
+[data-theme="light"] {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  
+  --primary: var(--hue) var(--saturation) 45%;
+  --primary-foreground: 210 20% 98%;
+  
+  --secondary: 210 40% 94%;
+  --secondary-foreground: 222 47% 11%;
+  
+  --muted: 210 40% 94%;
+  --muted-foreground: 215 16% 40%;
+  
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  
+  --border: var(--hue) var(--saturation) 25% / 0.15;
+  --input: var(--hue) var(--saturation) 25% / 0.08;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Palette Variations */
+[data-palette="purple"] { --hue: 271; --saturation: 91%; }
+[data-palette="green"] { --hue: 142; --saturation: 71%; }
+[data-palette="orange"] { --hue: 24; --saturation: 95%; }
+[data-palette="blue"] { --hue: 199; --saturation: 89%; }
+
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  * { @apply border-border/10; }
+  body {
+    @apply bg-background text-foreground antialiased transition-colors duration-300;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .glass {
+    @apply bg-card/70 backdrop-blur-md border border-border/20 rounded-lg shadow-xl;
+  }
+  
+  .glass-hover {
+    @apply transition-all duration-300 hover:bg-primary/5 hover:border-primary/40 hover:shadow-primary/10;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 15px hsla(var(--primary), 0.5);
+  }
 }
+

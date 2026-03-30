@@ -1,0 +1,60 @@
+# Documentación Técnica: ERP + POS Hunger Car Wash
+
+## 1. Arquitectura de Base de Datos (Modelos)
+
+### Vehículo
+- `id`: UUID
+- `placa`: String (Indexado)
+- `marca`: String
+- `modelo`: String
+- `tamano`: Enum (Chico, Mediano, Grande)
+- `cliente_id`: UUID (Relación)
+
+### Servicio
+- `id`: UUID
+- `nombre`: String
+- `descripcion`: Text
+- `precio_base`: Decimal
+- `ajuste_tamano`: JSON (Multiplicadores por tamaño)
+
+### Orden de Servicio (Venta/POS)
+- `id`: UUID
+- `folio`: String (Autoincremental)
+- `vehiculo_id`: UUID
+- `servicios`: JSONB (Lista de servicios y precios aplicados)
+- `total`: Decimal
+- `estado`: Enum (Recepción, Lavado, Secado, Listo, Entregado)
+- `codigo_qr`: String (Link único de tracking)
+- `metodo_pago`: Enum (Efectivo, Tarjeta, Membresía)
+
+### Membresía (Suscripciones)
+- `id`: UUID
+- `cliente_id`: UUID
+- `tipo`: Enum (Bronce, Plata, Oro)
+- `fecha_inicio`: DateTime
+- `fecha_proxima_renovacion`: DateTime
+- `estado`: Enum (Activa, Cancelada, Vencida)
+
+### Turno (Corte de Caja)
+- `id`: UUID
+- `usuario_id`: UUID
+- `fecha_apertura`: DateTime
+- `monto_inicial`: Decimal
+- `monto_declarado`: Decimal (Ingresado por cajero)
+- `monto_sistema`: Decimal (Calculado)
+- `diferencia`: Decimal
+
+## 2. Integración de Pagos (Arquitectura)
+
+### Endpoints Simulados
+- `POST /api/v1/payments/clip/create-checkout`: Inicia el flujo de Clip.
+- `POST /api/v1/payments/mercadopago/point-intent`: Envía el monto a la terminal Smart.
+- `POST /api/v1/webhooks/mercadopago`: Recibe confirmación de pago exitoso para liberar la orden.
+
+## 3. Lógica de Negocio (Precios Dinámicos)
+```javascript
+function calcularPrecio(servicio, tamano) {
+  const multiplicadores = { 'Chico': 1.0, 'Mediano': 1.2, 'Grande': 1.5 };
+  return servicio.precio_base * multiplicadores[tamano];
+}
+```
