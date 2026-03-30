@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 export default function ResourcesPage() {
   const { 
-    washers, addWasher, removeWasher, 
+    washers, addWasher, toggleWasherStatus, 
     bays, addBay, removeBay, updateBayDefaultWasher 
   } = useConfig();
   
@@ -89,10 +89,17 @@ export default function ResourcesPage() {
                 
                 <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     {washers.map(w => (
-                        <div key={w} className="p-4 rounded-xl border border-white/5 bg-white/5 flex items-center justify-between group/item hover:border-primary/20 transition-all">
-                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">{w}</span>
-                            <button onClick={() => removeWasher(w)} className="p-2 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-colors opacity-0 group-hover/item:opacity-100">
-                                <Trash2 className="w-3.5 h-3.5" />
+                        <div key={w.id} className={cn("p-4 rounded-xl border flex items-center justify-between group/item transition-all", w.isActive ? "border-white/5 bg-white/5 hover:border-primary/20" : "border-red-500/20 bg-red-500/5 opacity-60")}>
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-widest leading-none block">{w.fullName}</span>
+                                {!w.isActive && w.deactivatedAt && (
+                                    <span className="text-[8px] tracking-widest text-red-400/80 uppercase mt-1 block">
+                                        Baja: {new Date(w.deactivatedAt).toLocaleDateString('es-MX')}
+                                    </span>
+                                )}
+                            </div>
+                            <button onClick={() => toggleWasherStatus(w.id)} className={cn("p-2 rounded-lg transition-colors opacity-0 group-hover/item:opacity-100", w.isActive ? "hover:bg-red-500/10 hover:text-red-500" : "hover:bg-green-500/10 hover:text-green-500")}>
+                                {w.isActive ? <Trash2 className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                             </button>
                         </div>
                     ))}
@@ -143,7 +150,7 @@ export default function ResourcesPage() {
                                             onChange={(e) => updateBayDefaultWasher(bay.id, e.target.value || undefined)}
                                         >
                                             <option value="" className="bg-background">Elegir Lavador Fijo</option>
-                                            {washers.map(w => <option key={w} value={w} className="bg-background">{w}</option>)}
+                                            {washers.filter(w => w.isActive).map(w => <option key={w.id} value={w.id} className="bg-background">{w.fullName}</option>)}
                                         </select>
                                     </div>
                                 </div>

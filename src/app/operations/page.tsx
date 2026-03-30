@@ -175,7 +175,7 @@ export default function OperationsPage() {
                                 >
                                     <User className="w-2.5 h-2.5 text-primary" />
                                     <span className="tracking-widest capitalize truncate max-w-[70px]">
-                                        {order.washerId || "ASIGNAR"}
+                                        {washers.find(w => w.id === order.washerId)?.fullName || "ASIGNAR"}
                                     </span>
                                 </button>
                             </div>
@@ -286,16 +286,17 @@ export default function OperationsPage() {
                                 <UserPlus className="w-4 h-4 text-primary" /> Seleccionar Lavador
                             </label>
                             <div className="grid grid-cols-2 gap-3">
-                                {washers.map(washer => (
+                                {washers.filter(w => w.isActive || w.id === assigningOrder.washerId).map(washer => (
                                     <button 
-                                        key={washer}
-                                        onClick={() => updateOrderAssignment(assigningOrder.id, washer, assigningOrder.bayNumber)}
+                                        key={washer.id}
+                                        onClick={() => updateOrderAssignment(assigningOrder.id, washer.id, assigningOrder.bayNumber)}
                                         className={cn(
-                                            "h-12 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all",
-                                            assigningOrder.washerId === washer ? "bg-primary text-black border-primary shadow-lg shadow-primary/30" : "glass border-white/5 hover:border-primary/20"
+                                            "h-12 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all px-2 truncate",
+                                            assigningOrder.washerId === washer.id ? "bg-primary text-black border-primary shadow-lg shadow-primary/30" : "glass border-white/5 hover:border-primary/20"
                                         )}
+                                        title={washer.fullName}
                                     >
-                                        {washer}
+                                        {washer.fullName}
                                     </button>
                                 ))}
                             </div>

@@ -32,10 +32,11 @@ export default function ReportsPage() {
   const premiumOrders = orders.filter(o => o.isPremium).length;
 
   // Productividad por Lavador
-  const washerStats = washers.map(wId => ({
-    name: wId,
-    count: orders.filter(o => o.washerId === wId).length,
-    revenue: orders.filter(o => o.washerId === wId).reduce((acc, curr) => acc + curr.total, 0)
+  const washerStats = washers.map(washer => ({
+    id: washer.id,
+    name: washer.fullName,
+    count: orders.filter(o => o.washerId === washer.id).length,
+    revenue: orders.filter(o => o.washerId === washer.id).reduce((acc, curr) => acc + curr.total, 0)
   })).sort((a, b) => b.count - a.count);
 
   // Popularidad de Tamaños
@@ -128,7 +129,7 @@ export default function ReportsPage() {
             <CardContent className="p-0 flex-1 overflow-y-auto">
                 <div className="divide-y divide-white/5">
                     {washerStats.map((stat, i) => (
-                        <div key={stat.name} className="p-4 flex items-center justify-between hover:bg-white/5 transition-all">
+                        <div key={stat.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-all">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary">
                                     #{i+1}

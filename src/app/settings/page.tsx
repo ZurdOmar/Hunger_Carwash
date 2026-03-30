@@ -32,6 +32,8 @@ export default function SettingsPage() {
   
   const [newTypeName, setNewTypeName] = React.useState("");
   const [newTypePrice, setNewTypePrice] = React.useState("");
+  const [newServiceName, setNewServiceName] = React.useState("");
+  const [newServicePrice, setNewServicePrice] = React.useState("");
   const [percentIncrease, setPercentIncrease] = React.useState("");
   const [showSuccess, setShowSuccess] = React.useState(false);
 
@@ -40,6 +42,15 @@ export default function SettingsPage() {
         addVehicleSize(newTypeName, parseInt(newTypePrice)); 
         setNewTypeName(""); 
         setNewTypePrice("");
+        triggerSuccess();
+    }
+  };
+
+  const handleAddService = () => {
+    if(newServiceName && newServicePrice) {
+        addService(newServiceName, parseInt(newServicePrice), false);
+        setNewServiceName("");
+        setNewServicePrice("");
         triggerSuccess();
     }
   };
@@ -193,9 +204,32 @@ export default function SettingsPage() {
                             </div>
                         ))}
                     </div>
-                    <Button variant="outline" className="w-full h-10 border-dashed border-white/10 font-bold uppercase text-[10px] tracking-widest hover:bg-white/5">
-                        <Plus className="w-3 h-3 mr-2" /> Agregar Extra
-                    </Button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 mt-4">
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Nuevo Extra</label>
+                            <Input 
+                                placeholder="Ej. Lustrado" 
+                                value={newServiceName}
+                                onChange={(e) => setNewServiceName(e.target.value)}
+                                className="h-10 text-xs font-bold bg-background/50 border-white/10 uppercase tracking-widest"
+                            />
+                        </div>
+                        <div className="flex items-end gap-2">
+                            <div className="flex-1 space-y-1">
+                                <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Precio $</label>
+                                <Input 
+                                    placeholder="0.00" 
+                                    type="number"
+                                    value={newServicePrice}
+                                    onChange={(e) => setNewServicePrice(e.target.value)}
+                                    className="h-10 text-xs font-bold bg-background/50 border-white/10"
+                                />
+                            </div>
+                            <Button size="icon" onClick={handleAddService} className="h-10 w-10 shrink-0 bg-primary text-black hover:bg-primary/90">
+                                <Plus className="w-5 h-5" />
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>

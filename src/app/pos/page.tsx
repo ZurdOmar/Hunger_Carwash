@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PREMIUM_ADDON_PRICE, VehicleSize, Order, Member, Bay, PromoRule } from "@/lib/types";
 import { MEXICO_BRANDS } from "@/lib/data";
 import { useConfig } from "@/lib/ConfigContext";
+import { supabase } from "@/lib/supabase";
 import { 
   Check, 
   ChevronRight, 
@@ -43,6 +44,8 @@ export default function POSPage() {
   const [assignedWasher, setAssignedWasher] = React.useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = React.useState<'Efectivo' | 'Tarjeta' | 'Membresía' | null>(null);
   const [isFinishing, setIsFinishing] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [currentVehicleId, setCurrentVehicleId] = React.useState<string | null>(null);
 
   // Inteligencia de Fidelización
   const [memberData, setMemberData] = React.useState<Member | undefined>(undefined);
@@ -76,18 +79,52 @@ export default function POSPage() {
     return total;
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (step === "vehicle" && vehicle.placa) {
-        const info = getMemberInfo(vehicle.placa);
-        setMemberData(info);
-        
-        // Buscar Promoción Aplicable según la visita (info.totalWashings + 1)
-        const currentVisit = (info?.totalWashings || 0) + 1;
-        const promo = promoRules.find(p => p.isActive && p.visitThreshold === currentVisit);
-        setDetectedPromo(promo || null);
-        setAppliedPromo(null); // Resetear aplicación previa
-        
-        setStep("size");
+        setIsLoading(true);
+        try {
+            const { data: existingVehicle } = await supabase
+                .from("vehiculos")
+                .select("*")
+                .eq("placa", vehicle.placa)
+                .maybeSingle();
+
+            let previousWashings = 0;
+            if (existingVehicle) {
+                setCurrentVehicleId(existingVehicle.id);
+                setVehicle({
+                    placa: existingVehicle.placa,
+                    brand: existingVehicle.marca || vehicle.brand,
+                    model: existingVehicle.modelo || vehicle.model
+                });
+                setSelectedSize(existingVehicle.tamano);
+
+                const { count } = await supabase
+                    .from("ordenes_servicio")
+                    .select("*", { count: "exact", head: true })
+                    .eq("vehiculo_id", existingVehicle.id);
+                
+                previousWashings = count || 0;
+            } else {
+                setCurrentVehicleId(null);
+            }
+
+            const info = getMemberInfo(vehicle.placa);
+            const mergedInfo = { ...info, totalWashings: previousWashings };
+            setMemberData(mergedInfo as any);
+            
+            const currentVisit = previousWashings + 1;
+            const promo = promoRules.find(p => p.isActive && p.visitThreshold === currentVisit);
+            setDetectedPromo(promo || null);
+            setAppliedPromo(null);
+            
+            setStep("size");
+        } catch (error) {
+            console.error("Error fetching vehicle:", error);
+            setStep("size");
+        } finally {
+            setIsLoading(false);
+        }
     }
     else if (step === "size" && selectedSize) setStep("services");
     else if (step === "services") setStep("checkout");
@@ -101,10 +138,54 @@ export default function POSPage() {
     }
   };
 
-  const handleFinishOrder = () => {
+  const handleFinishOrder = async () => {
     if (!selectedSize || !paymentMethod) return;
     setIsFinishing(true);
     
+    let vehId = currentVehicleId;
+    try {
+        if (!vehId) {
+            const { data: newVeh } = await supabase
+                .from("vehiculos")
+                .insert({
+                    placa: vehicle.placa,
+                    marca: vehicle.brand,
+                    modelo: vehicle.model || "N/A",
+                    tamano: selectedSize as any
+                })
+                .select()
+                .single();
+            if (newVeh) vehId = newVeh.id;
+        } else {
+            await supabase
+                .from("vehiculos")
+                .update({
+                    marca: vehicle.brand,
+                    modelo: vehicle.model || "N/A",
+                    tamano: selectedSize as any
+                })
+                .eq("id", vehId);
+        }
+        
+        if (vehId) {
+            // Obtener matriz para tener un sucursal_id válido
+            const { data: matriz } = await supabase.from('sucursales').select('id').eq('es_matriz', true).single();
+            if (matriz) {
+                await supabase.from("ordenes_servicio").insert({
+                    vehiculo_id: vehId,
+                    servicios: dynamicServices.filter(s => selectedServices.includes(s.id)) as any,
+                    es_premium: isPremiumPackage,
+                    total: calculateTotal(),
+                    estado: 'Recepción',
+                    metodo_pago: paymentMethod,
+                    sucursal_id: matriz.id
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Error saving to supabase:", err);
+    }
+
     const newOrder: Order = {
         id: Math.random().toString(36).substr(2, 9),
         folio: `HUN-${Math.floor(Math.random() * 9000) + 1000}`,
@@ -179,11 +260,13 @@ export default function POSPage() {
                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none block mb-2">Personal Asignado</label>
                         <select className="w-full h-14 rounded-xl glass border-white/10 px-4 text-xs font-black uppercase tracking-widest outline-none focus:border-primary" value={assignedWasher || ""} onChange={(e) => setAssignedWasher(e.target.value)}>
                             <option value="">SIN ASIGNAR</option>
-                            {washers.map(w => <option key={w} value={w}>{w}</option>)}
+                            {washers.map(w => <option key={w.id} value={w.id}>{w.fullName}</option>)}
                         </select>
                     </div>
                 </div>
-                <Button className="w-full h-16 text-lg font-black italic tracking-tighter shadow-primary/20 shadow-xl" size="lg" disabled={!vehicle.placa} onClick={handleNextStep}>CONTINUAR PROCESO <ChevronRight className="ml-2 w-5 h-5" /></Button>
+                <Button className="w-full h-16 text-lg font-black italic tracking-tighter shadow-primary/20 shadow-xl" size="lg" disabled={!vehicle.placa || isLoading} onClick={handleNextStep}>
+                   {isLoading ? "BUSCANDO VEHÍCULO..." : <div className="flex items-center justify-center">CONTINUAR PROCESO <ChevronRight className="ml-2 w-5 h-5" /></div>}
+                </Button>
               </CardContent>
             </Card>
           </motion.div>
@@ -306,7 +389,7 @@ export default function POSPage() {
                                 <div className="space-y-1">
                                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Vehículo & Bahía</p>
                                     <p className="text-3xl font-black tracking-[0.2em]">{vehicle.placa}</p>
-                                    <p className="text-xs font-bold text-primary italic uppercase">{vehicle.brand} • BA{selectedBayId || "X"} • {assignedWasher || "SIN ASIGNAR"}</p>
+                                    <p className="text-xs font-bold text-primary italic uppercase">{vehicle.brand} • BA{selectedBayId || "X"} • {washers.find(w => w.id === assignedWasher)?.fullName || "SIN ASIGNAR"}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total</p>

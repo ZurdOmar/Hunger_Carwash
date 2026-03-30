@@ -66,9 +66,17 @@ export interface PromoRule {
   isActive: boolean;
 }
 
+export interface Washer {
+  id: string;
+  fullName: string;
+  isActive: boolean;
+  createdAt: string;
+  deactivatedAt?: string;
+}
+
 export interface GlobalConfig {
   promoRules: PromoRule[];
   bays: Bay[];
-  washers: string[];
+  washers: Washer[];
   services: Service[];
 }

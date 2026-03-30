@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark h-full">
+    <html lang="es" className="dark h-full" suppressHydrationWarning>
       <body className={cn(inter.className, "bg-background text-foreground min-h-screen overflow-hidden")}>
         <Providers>
           <div className="flex h-screen w-full relative">
