@@ -128,12 +128,16 @@ export type Database = {
       }
       ordenes_servicio: {
         Row: {
+          cajon_id: number | null
+          cajero_id: string | null
           codigo_qr: string | null
           created_at: string | null
           es_premium: boolean | null
           estado: Database["public"]["Enums"]["estado_orden"]
+          fecha_cierre: string | null
           folio: number
           id: string
+          lavador_id: string | null
           metodo_pago: Database["public"]["Enums"]["metodo_pago"] | null
           premium_extra_cost: number | null
           servicios: Json
@@ -143,12 +147,16 @@ export type Database = {
           vehiculo_id: string | null
         }
         Insert: {
+          cajon_id?: number | null
+          cajero_id?: string | null
           codigo_qr?: string | null
           created_at?: string | null
           es_premium?: boolean | null
           estado?: Database["public"]["Enums"]["estado_orden"]
+          fecha_cierre?: string | null
           folio?: number
           id?: string
+          lavador_id?: string | null
           metodo_pago?: Database["public"]["Enums"]["metodo_pago"] | null
           premium_extra_cost?: number | null
           servicios?: Json
@@ -158,12 +166,16 @@ export type Database = {
           vehiculo_id?: string | null
         }
         Update: {
+          cajon_id?: number | null
+          cajero_id?: string | null
           codigo_qr?: string | null
           created_at?: string | null
           es_premium?: boolean | null
           estado?: Database["public"]["Enums"]["estado_orden"]
+          fecha_cierre?: string | null
           folio?: number
           id?: string
+          lavador_id?: string | null
           metodo_pago?: Database["public"]["Enums"]["metodo_pago"] | null
           premium_extra_cost?: number | null
           servicios?: Json
@@ -195,6 +207,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      perfiles: {
+        Row: {
+          created_at: string | null
+          full_name: string | null
+          id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          role?: string
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string
+        }
+        Relationships: []
       }
       precios_base: {
         Row: {
@@ -315,7 +348,9 @@ export type Database = {
       turnos: {
         Row: {
           diferencia: number | null
+          estado: string | null
           fecha_apertura: string | null
+          fecha_cierre: string | null
           id: string
           monto_declarado: number | null
           monto_inicial: number
@@ -325,7 +360,9 @@ export type Database = {
         }
         Insert: {
           diferencia?: number | null
+          estado?: string | null
           fecha_apertura?: string | null
+          fecha_cierre?: string | null
           id?: string
           monto_declarado?: number | null
           monto_inicial?: number
@@ -335,7 +372,9 @@ export type Database = {
         }
         Update: {
           diferencia?: number | null
+          estado?: string | null
           fecha_apertura?: string | null
+          fecha_cierre?: string | null
           id?: string
           monto_declarado?: number | null
           monto_inicial?: number

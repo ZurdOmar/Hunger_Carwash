@@ -5,6 +5,7 @@ import { ThemeProvider } from "./ThemeProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ConfigProvider } from "@/lib/ConfigContext";
+import { AuthProvider } from "@/lib/AuthContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = React.useState(
@@ -20,12 +21,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider defaultTheme="dark">
-      <ConfigProvider>
-        <QueryClientProvider client={queryClient}>
-          {children}
-          <ReactQueryDevtools initialIsOpen={false} />
-        </QueryClientProvider>
-      </ConfigProvider>
+      <AuthProvider>
+        <ConfigProvider>
+          <QueryClientProvider client={queryClient}>
+            {children}
+            <ReactQueryDevtools initialIsOpen={false} />
+          </QueryClientProvider>
+        </ConfigProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

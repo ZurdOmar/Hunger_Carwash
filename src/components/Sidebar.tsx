@@ -3,21 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  CreditCard, 
-  Kanban, 
-  Settings, 
+import {
+  LayoutDashboard,
+  CreditCard,
+  Kanban,
+  Settings,
   ChevronRight,
   Car,
   BarChart3,
   Users,
-  Package
+  Package,
+  LogOut
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Logo } from "./Logo";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { useAuth } from "@/lib/AuthContext";
+import { Button } from "./ui/Button";
 
 const navItems = [
   { icon: CreditCard, label: "Punto de Venta", href: "/pos" },
@@ -31,6 +34,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { profile, signOut } = useAuth();
 
   return (
     <div className="w-64 h-full glass border-l-0 rounded-l-none flex flex-col z-50 overflow-hidden">
@@ -65,6 +69,29 @@ export function Sidebar() {
 
       <div className="mt-auto space-y-4 pt-4 border-t border-white/5">
         <ThemeSwitcher />
+
+        {profile && (
+          <div className="space-y-3 px-2">
+            <div className="bg-white/5 rounded-lg p-3 text-xs space-y-1">
+              <p className="font-semibold text-foreground truncate">
+                {profile.full_name || 'Usuario'}
+              </p>
+              <p className="text-muted-foreground uppercase tracking-widest text-[9px]">
+                {profile.role}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-center gap-2 text-xs"
+              onClick={signOut}
+            >
+              <LogOut className="w-3 h-3" />
+              Cerrar sesión
+            </Button>
+          </div>
+        )}
+
         <p className="text-[10px] text-muted-foreground text-center">Velocity ERP v1.1.0-Branding</p>
       </div>
     </div>

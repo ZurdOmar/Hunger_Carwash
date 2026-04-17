@@ -3,8 +3,10 @@
 import { Bell, User, Search } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/lib/AuthContext";
 
 export function TopBar() {
+  const { profile } = useAuth();
   return (
     <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-background/50 backdrop-blur-sm z-40">
       <div className="flex-1 flex items-center gap-4 max-w-xl">
@@ -19,7 +21,9 @@ export function TopBar() {
 
       <div className="flex items-center gap-4">
         <div className="flex flex-col items-end mr-4">
-          <span className="text-sm font-semibold">Admin Hunger</span>
+          <span className="text-sm font-semibold">
+            {profile?.full_name || 'Usuario'}
+          </span>
           <span className="text-[10px] text-green-400 flex items-center gap-1 uppercase font-bold tracking-tighter">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
             En Línea
