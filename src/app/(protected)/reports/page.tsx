@@ -24,28 +24,69 @@ import { useConfig } from "@/lib/ConfigContext";
 
 export default function ReportsPage() {
   const { orders, washers } = useConfig();
-  
-  // Datos Reales
-  const totalRevenue = orders.reduce((acc, curr) => acc + curr.total, 0);
-  const deliveredOrders = orders.filter(o => o.status === 'Entregado').length;
+  const [dateRange, setDateRange] = React.useState({
+    from: new Date(new Date().setDate(1)).toISOString().split('T')[0],
+    to: new Date().toISOString().split('T')[0]
+  });
+
+  // Filtrar órdenes por rango de fechas
+  const filteredOrders = orders.filter(o => {
+    const orderDate = o.createdAt.split('T')[0];
+    return orderDate >= dateRange.from && orderDate <= dateRange.to;
+  });
+
+  // Datos Reales (filtrados por fecha)
+  const totalRevenue = filteredOrders.reduce((acc, curr) => acc + curr.total, 0);
+  const deliveredOrders = filteredOrders.filter(o => o.status === 'Entregado').length;
   const avgTicket = deliveredOrders > 0 ? (totalRevenue / deliveredOrders).toFixed(2) : "0.00";
-  const premiumOrders = orders.filter(o => o.isPremium).length;
+  const premiumOrders = filteredOrders.filter(o => o.isPremium).length;
 
   // Productividad por Lavador
   const washerStats = washers.map(washer => ({
     id: washer.id,
     name: washer.fullName,
-    count: orders.filter(o => o.washerId === washer.id).length,
-    revenue: orders.filter(o => o.washerId === washer.id).reduce((acc, curr) => acc + curr.total, 0)
+    count: filteredOrders.filter(o => o.washerId === washer.id).length,
+    revenue: filteredOrders.filter(o => o.washerId === washer.id).reduce((acc, curr) => acc + curr.total, 0)
   })).sort((a, b) => b.count - a.count);
 
   // Popularidad de Tamaños
   const sizeStats = Object.entries(
-    orders.reduce((acc, o) => {
+    filteredOrders.reduce((acc, o) => {
         acc[o.vehicle.size] = (acc[o.vehicle.size] || 0) + 1;
         return acc;
     }, {} as Record<string, number>)
   ).sort((a, b) => b[1] - a[1]);
+
+  // Función para exportar CSV
+  const handleExportCSV = () => {
+    const BOM = '\uFEFF';
+    let csv = BOM + 'REPORTE DE ÓRDENES\n';
+    csv += `Período,${dateRange.from} a ${dateRange.to}\n`;
+    csv += `Fecha Generación,${new Date().toLocaleString('es-MX')}\n\n`;
+
+    csv += 'KPIs\n';
+    csv += `Ingresos Totales,"$${totalRevenue.toLocaleString()}"\n`;
+    csv += `Servicios Finalizados,${deliveredOrders}\n`;
+    csv += `Ticket Promedio,"$${avgTicket}"\n`;
+    csv += `Ventas Premium,${premiumOrders}\n\n`;
+
+    csv += 'ORDENES\n';
+    csv += 'Folio,Placa,Tamaño,Lavador,Total,Estado,Método,Fecha\n';
+    filteredOrders.forEach(o => {
+      const lavadorName = washers.find(w => w.id === o.washerId)?.fullName || 'N/A';
+      csv += `${o.folio},"${o.vehicle.placa}","${o.vehicle.size}","${lavadorName}","$${o.total}","${o.status}","${o.paymentMethod || 'N/A'}","${new Date(o.createdAt).toLocaleDateString('es-MX')}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reporte-${dateRange.from}-${dateRange.to}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-8 pb-32 pr-2">
@@ -54,11 +95,28 @@ export default function ReportsPage() {
           <Heading level={2}>Reportes Analíticos</Heading>
           <p className="text-muted-foreground text-sm font-medium italic">Inteligencia de Negocio Hunger Velocity v1.2</p>
         </div>
-        <div className="flex gap-2">
-           <Button variant="outline" className="glass border-white/5 font-bold uppercase tracking-widest text-[10px]">
-            <Calendar className="mr-2 w-3 h-3" /> Filtrar Fecha
-          </Button>
-          <Button variant="outline" className="glass border-white/5 font-bold uppercase tracking-widest text-[10px]">
+        <div className="flex gap-2 items-center flex-wrap">
+          <div className="flex gap-2 items-center bg-surface-container-lowest px-3 rounded-lg border border-white/5">
+            <Calendar className="w-3 h-3 text-muted-foreground" />
+            <input
+              type="date"
+              value={dateRange.from}
+              onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+              className="h-9 bg-transparent text-xs font-bold border-0 outline-none"
+            />
+            <span className="text-muted-foreground text-xs">—</span>
+            <input
+              type="date"
+              value={dateRange.to}
+              onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+              className="h-9 bg-transparent text-xs font-bold border-0 outline-none"
+            />
+          </div>
+          <Button
+            variant="outline"
+            className="glass border-white/5 font-bold uppercase tracking-widest text-[10px]"
+            onClick={handleExportCSV}
+          >
             <Download className="mr-2 w-3 h-3" /> Exportar CSV
           </Button>
         </div>
