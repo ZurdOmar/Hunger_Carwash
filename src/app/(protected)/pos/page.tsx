@@ -171,7 +171,7 @@ export default function POSPage() {
             // Obtener matriz para tener un sucursal_id válido
             const { data: matriz } = await supabase.from('sucursales').select('id').eq('es_matriz', true).single();
             if (matriz) {
-                await supabase.from("ordenes_servicio").insert({
+                const { data: newOrderData } = await supabase.from("ordenes_servicio").insert({
                     vehiculo_id: vehId,
                     servicios: dynamicServices.filter(s => selectedServices.includes(s.id)) as any,
                     es_premium: isPremiumPackage,
@@ -179,13 +179,45 @@ export default function POSPage() {
                     estado: 'Recepción',
                     metodo_pago: paymentMethod,
                     sucursal_id: matriz.id
-                });
+                }).select().single();
+
+                if (newOrderData) {
+                    const newOrder: Order = {
+                        id: newOrderData.id,
+                        folio: `${newOrderData.folio}`,
+                        vehicle: {
+                            placa: vehicle.placa,
+                            brand: vehicle.brand,
+                            model: vehicle.model || "Modelo no especificado",
+                            size: selectedSize as any
+                        },
+                        services: dynamicServices.filter(s => selectedServices.includes(s.id)),
+                        isPremium: isPremiumPackage,
+                        basePrice: basePrices[selectedSize as string] || 0,
+                        premiumPrice: PREMIUM_ADDON_PRICE,
+                        total: calculateTotal(),
+                        status: 'Recepción',
+                        bayNumber: selectedBayId ?? undefined,
+                        washerId: assignedWasher ?? undefined,
+                        createdAt: new Date().toISOString(),
+                        paymentMethod: paymentMethod,
+                        isFree: appliedPromo?.benefit === 'free'
+                    };
+
+                    setTimeout(() => {
+                        addOrder(newOrder);
+                        setIsFinishing(false);
+                        router.push('/operations');
+                    }, 1000);
+                    return;
+                }
             }
         }
     } catch (err) {
         console.error("Error saving to supabase:", err);
     }
 
+    // Fallback if something went wrong (should not happen in production)
     const newOrder: Order = {
         id: Math.random().toString(36).substr(2, 9),
         folio: `HUN-${Math.floor(Math.random() * 9000) + 1000}`,

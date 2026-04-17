@@ -175,11 +175,66 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           })));
       }
 
-      // Only orders and members load from localStorage for now
-      const o = localStorage.getItem("hunger_orders");
-      const m = localStorage.getItem("hunger_members");
-      if (o) setOrders(JSON.parse(o));
-      if (m) setMembers(JSON.parse(m));
+      // Load orders from Supabase (not localStorage)
+      const { data: dbOrders } = await supabase
+        .from("ordenes_servicio")
+        .select("*")
+        .neq("estado", "Entregado")
+        .order("created_at", { ascending: false });
+
+      if (dbOrders && dbOrders.length > 0) {
+        const mapped = dbOrders.map((o: any) => ({
+          id: o.id,
+          folio: o.folio,
+          vehicle: {
+            placa: o.vehiculos?.placa || "",
+            brand: o.vehiculos?.marca || "",
+            model: o.vehiculos?.modelo || "",
+            size: o.vehiculos?.tamano || "Carro Chico" as VehicleSize,
+          },
+          services: o.servicios || [],
+          isPremium: o.es_premium || false,
+          basePrice: o.total || 0,
+          premiumPrice: o.premium_extra_cost || 0,
+          total: o.total || 0,
+          status: o.estado as Order['status'],
+          washerId: o.lavador_id || undefined,
+          bayNumber: o.cajon_id || undefined,
+          createdAt: o.created_at || new Date().toISOString(),
+          paymentMethod: o.metodo_pago || undefined,
+        }));
+        setOrders(mapped);
+      } else {
+        // If no orders in DB, try to migrate from localStorage
+        const o = localStorage.getItem("hunger_orders");
+        if (o) setOrders(JSON.parse(o));
+      }
+
+      // Load members from Supabase (vehiculos + count ordenes)
+      const { data: dbVehiculos } = await supabase
+        .from("vehiculos")
+        .select("id, placa, marca, modelo, clientes (nombre), ordenes_servicio (count)")
+        .order("created_at", { ascending: false });
+
+      if (dbVehiculos && dbVehiculos.length > 0) {
+        const mapped = dbVehiculos.map((v: any) => ({
+          id: v.id,
+          placa: v.placa,
+          name: v.clientes?.nombre || undefined,
+          totalWashings: v.ordenes_servicio?.[0]?.count || 0,
+          lastVisit: new Date().toISOString(),
+          joinedAt: new Date().toISOString(),
+        }));
+        setMembers(mapped);
+      } else {
+        // If no vehicles in DB, try to migrate from localStorage
+        const m = localStorage.getItem("hunger_members");
+        if (m) setMembers(JSON.parse(m));
+      }
+
+      // Clear old localStorage data
+      localStorage.removeItem("hunger_orders");
+      localStorage.removeItem("hunger_members");
     };
 
     syncWithSupabase();
@@ -229,29 +284,54 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     addOrUpdateMember(order.vehicle.placa);
   };
 
-  const updateOrderStatus = (id: string, newStatus: Order['status']) => {
+  const updateOrderStatus = async (id: string, newStatus: Order['status']) => {
+    // Update optimistically in memory
     const updated = orders.map(o => o.id === id ? { ...o, status: newStatus } : o);
     setOrders(updated);
-    localStorage.setItem("hunger_orders", JSON.stringify(updated));
+
+    // Sync with Supabase
+    const fechaCierre = newStatus === 'Entregado' ? new Date().toISOString() : null;
+    await supabase
+      .from("ordenes_servicio")
+      .update({
+        estado: newStatus,
+        fecha_cierre: fechaCierre
+      })
+      .eq("id", id);
   };
 
-  const updateOrderAssignment = (id: string, wId?: string, bNum?: number) => {
+  const updateOrderAssignment = async (id: string, wId?: string, bNum?: number) => {
+    // Update optimistically in memory
     const updated = orders.map(o => o.id === id ? { ...o, washerId: wId ?? o.washerId, bayNumber: bNum ?? o.bayNumber } : o);
     setOrders(updated);
-    localStorage.setItem("hunger_orders", JSON.stringify(updated));
+
+    // Sync with Supabase
+    await supabase
+      .from("ordenes_servicio")
+      .update({
+        lavador_id: wId || null,
+        cajon_id: bNum || null
+      })
+      .eq("id", id);
   };
 
   // --- Fidelización ---
-  const addOrUpdateMember = (placa: string) => {
+  const addOrUpdateMember = async (placa: string) => {
+    // For now, members are loaded from vehiculos in Supabase
+    // This function can be extended if needed to update cliente data
     const existing = members.find(m => m.placa === placa);
-    let updated;
-    if (existing) {
-        updated = members.map(m => m.placa === placa ? { ...m, totalWashings: m.totalWashings + 1, lastVisit: new Date().toISOString() } : m);
-    } else {
-        updated = [...members, { id: Math.random().toString(36).substr(2,9), placa, totalWashings: 1, lastVisit: new Date().toISOString(), joinedAt: new Date().toISOString() }];
+    if (!existing) {
+      // Create a new vehicle/client if needed
+      // This would happen in the POS when creating an order
+      const newMember: Member = {
+        id: Math.random().toString(36).substr(2, 9),
+        placa,
+        totalWashings: 1,
+        lastVisit: new Date().toISOString(),
+        joinedAt: new Date().toISOString(),
+      };
+      setMembers([...members, newMember]);
     }
-    setMembers(updated);
-    localStorage.setItem("hunger_members", JSON.stringify(updated));
   };
 
   const addPromoRule = async (rule: PromoRule) => {
