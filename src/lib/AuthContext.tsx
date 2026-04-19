@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
@@ -26,8 +26,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const initialized = useRef(false)
 
   useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -71,10 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null)
         }
 
-        if (event === 'SIGNED_OUT') {
-          localStorage.removeItem('hunger_orders')
-          localStorage.removeItem('hunger_members')
-        }
       }
     )
 
@@ -84,8 +84,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await supabase.auth.signOut()
-      localStorage.removeItem('hunger_orders')
-      localStorage.removeItem('hunger_members')
       router.push('/login')
     } catch (error) {
       console.error('Error signing out:', error)

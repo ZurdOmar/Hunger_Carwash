@@ -44,23 +44,26 @@ export async function cerrarTurno(
   turnoId: string,
   montoDeclarado: number,
   montoSistema: number
-): Promise<void> {
-  try {
-    const diferencia = montoDeclarado - montoSistema
+): Promise<Turno> {
+  const diferencia = montoDeclarado - montoSistema
+  const fechaCierre = new Date().toISOString()
 
-    await supabase
-      .from('turnos')
-      .update({
-        monto_declarado: montoDeclarado,
-        monto_sistema: montoSistema,
-        diferencia: diferencia,
-        fecha_cierre: new Date().toISOString(),
-        estado: 'cerrado',
-      })
-      .eq('id', turnoId)
-  } catch (error) {
-    console.error('Error cerrando turno:', error)
-  }
+  const { data, error } = await supabase
+    .from('turnos')
+    .update({
+      monto_declarado: montoDeclarado,
+      monto_sistema: montoSistema,
+      diferencia: diferencia,
+      fecha_cierre: fechaCierre,
+      estado: 'cerrado',
+    })
+    .eq('id', turnoId)
+    .select()
+    .single()
+
+  if (error) throw error
+  if (!data) throw new Error(`No se encontró el turno ${turnoId} para cerrar`)
+  return data as Turno
 }
 
 export async function getTurnoActivo(sucursalId: string): Promise<Turno | null> {
@@ -79,6 +82,23 @@ export async function getTurnoActivo(sucursalId: string): Promise<Turno | null> 
   } catch (error) {
     console.error('Error obteniendo turno activo:', error)
     return null
+  }
+}
+
+export async function getHistorialCortes(sucursalId: string): Promise<Turno[]> {
+  try {
+    const { data, error } = await supabase
+      .from('turnos')
+      .select('*')
+      .eq('sucursal_id', sucursalId)
+      .order('fecha_apertura', { ascending: false })
+      .limit(50)
+
+    if (error) throw error
+    return (data as Turno[]) || []
+  } catch (error) {
+    console.error('Error obteniendo historial de cortes:', error)
+    return []
   }
 }
 
@@ -110,12 +130,12 @@ export function generarCSVCorte(orders: Order[], turno: Turno): string {
   csv += `Monto Declarado,${turno.monto_declarado || 0}\n`
   csv += `Diferencia,${turno.diferencia || 0}\n\n`
 
-  csv += 'DESGLOSE POR METODO DE PAGO\n'
+  csv += 'DESGLOSE POR MÉTODO DE PAGO\n'
   csv += `Efectivo,"$${efectivoTotal.toLocaleString()}"\n`
   csv += `Tarjeta,"$${tarjetaTotal.toLocaleString()}"\n`
   csv += `Membresía,"$${membresiaTotl.toLocaleString()}"\n\n`
 
-  csv += 'ORDENES DEL DIA\n'
+  csv += 'ÓRDENES DEL DÍA\n'
   csv += 'Folio,Placa,Tamaño,Premium,Total,Método,Estado\n'
 
   orders.forEach((o) => {

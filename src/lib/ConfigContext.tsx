@@ -60,20 +60,10 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [basePrices, setBasePrices] = useState(BASE_PRICES);
   const [orders, setOrders] = useState<Order[]>([]);
   
-  // Recursos e Infraestructura
-  const [washers, setWashers] = useState<Washer[]>([
-    { id: "w1", fullName: "Jeran", isActive: true, createdAt: new Date().toISOString() },
-    { id: "w2", fullName: "Omar", isActive: true, createdAt: new Date().toISOString() },
-    { id: "w3", fullName: "Zurd", isActive: true, createdAt: new Date().toISOString() },
-    { id: "w4", fullName: "Velocity", isActive: true, createdAt: new Date().toISOString() }
-  ]);
-  const [bays, setBays] = useState<Bay[]>([
-    { id: 1, label: "Cajón 1", defaultWasherId: "w1" },
-    { id: 2, label: "Cajón 2", defaultWasherId: "w2" },
-    { id: 3, label: "Cajón 3", defaultWasherId: "w3" },
-    { id: 4, label: "Cajón 4" },
-    { id: 5, label: "Cajón 5" }
-  ]);
+  // Recursos e Infraestructura (vacíos hasta que Supabase responda; seeds se
+  // insertan en DB si la tabla viene vacía, para que los IDs sean reales).
+  const [washers, setWashers] = useState<Washer[]>([]);
+  const [bays, setBays] = useState<Bay[]>([]);
 
   // Fidelización
   const [members, setMembers] = useState<Member[]>([]);
@@ -141,9 +131,34 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       // --- FETCH FROM DB ---
       const { data: dbPrices } = await supabase.from("precios_base").select("*");
       const { data: dbServices } = await supabase.from("servicios").select("*");
-      const { data: dbWashers } = await supabase.from("lavadores").select("*");
-      const { data: dbBays } = await supabase.from("cajones").select("*");
+      let { data: dbWashers } = await supabase.from("lavadores").select("*");
+      let { data: dbBays } = await supabase.from("cajones").select("*");
       const { data: dbPromos } = await supabase.from("reglas_promocion").select("*");
+
+      // Si las tablas vienen vacías, sembrar defaults y recargar para obtener
+      // IDs reales (evita FK violations al crear órdenes).
+      if (!dbWashers || dbWashers.length === 0) {
+        await supabase.from("lavadores").insert([
+          { nombre_completo: "Jeran", activo: true },
+          { nombre_completo: "Omar", activo: true },
+          { nombre_completo: "Zurd", activo: true },
+          { nombre_completo: "Velocity", activo: true },
+        ]);
+        const { data } = await supabase.from("lavadores").select("*");
+        dbWashers = data;
+      }
+
+      if (!dbBays || dbBays.length === 0) {
+        await supabase.from("cajones").insert([
+          { label: "Cajón 1" },
+          { label: "Cajón 2" },
+          { label: "Cajón 3" },
+          { label: "Cajón 4" },
+          { label: "Cajón 5" },
+        ]);
+        const { data } = await supabase.from("cajones").select("*");
+        dbBays = data;
+      }
 
       if (dbPrices && dbPrices.length > 0) {
           const pb: Record<string, number> = {};
@@ -175,22 +190,22 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           })));
       }
 
-      // Load orders from Supabase (not localStorage)
+      // Load active orders from Supabase (join vehiculos so placa/marca/modelo/tamano come through)
       const { data: dbOrders } = await supabase
         .from("ordenes_servicio")
-        .select("*")
+        .select("*, vehiculos(*)")
         .neq("estado", "Entregado")
         .order("created_at", { ascending: false });
 
-      if (dbOrders && dbOrders.length > 0) {
+      if (dbOrders) {
         const mapped = dbOrders.map((o: any) => ({
           id: o.id,
-          folio: o.folio,
+          folio: `${o.folio}`,
           vehicle: {
             placa: o.vehiculos?.placa || "",
             brand: o.vehiculos?.marca || "",
             model: o.vehiculos?.modelo || "",
-            size: o.vehiculos?.tamano || "Carro Chico" as VehicleSize,
+            size: (o.vehiculos?.tamano || "Carro Chico") as VehicleSize,
           },
           services: o.servicios || [],
           isPremium: o.es_premium || false,
@@ -204,10 +219,6 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           paymentMethod: o.metodo_pago || undefined,
         }));
         setOrders(mapped);
-      } else {
-        // If no orders in DB, try to migrate from localStorage
-        const o = localStorage.getItem("hunger_orders");
-        if (o) setOrders(JSON.parse(o));
       }
 
       // Load members from Supabase (vehiculos + count ordenes)
@@ -216,7 +227,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         .select("id, placa, marca, modelo, clientes (nombre), ordenes_servicio (count)")
         .order("created_at", { ascending: false });
 
-      if (dbVehiculos && dbVehiculos.length > 0) {
+      if (dbVehiculos) {
         const mapped = dbVehiculos.map((v: any) => ({
           id: v.id,
           placa: v.placa,
@@ -226,13 +237,9 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           joinedAt: new Date().toISOString(),
         }));
         setMembers(mapped);
-      } else {
-        // If no vehicles in DB, try to migrate from localStorage
-        const m = localStorage.getItem("hunger_members");
-        if (m) setMembers(JSON.parse(m));
       }
 
-      // Clear old localStorage data
+      // Best-effort cleanup of any legacy keys that might still exist from older builds
       localStorage.removeItem("hunger_orders");
       localStorage.removeItem("hunger_members");
     };
@@ -277,10 +284,10 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   };
 
   // --- Órdenes ---
+  // The row is already inserted in ordenes_servicio by the POS before this runs;
+  // this only mirrors the new order into React state for the current tab.
   const addOrder = (order: Order) => {
-    const updated = [order, ...orders];
-    setOrders(updated);
-    localStorage.setItem("hunger_orders", JSON.stringify(updated));
+    setOrders(prev => [order, ...prev]);
     addOrUpdateMember(order.vehicle.placa);
   };
 

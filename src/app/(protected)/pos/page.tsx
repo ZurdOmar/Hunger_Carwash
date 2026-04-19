@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/Badge";
 import { PREMIUM_ADDON_PRICE, VehicleSize, Order, Member, Bay, PromoRule } from "@/lib/types";
 import { MEXICO_BRANDS } from "@/lib/data";
 import { useConfig } from "@/lib/ConfigContext";
+import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { getTurnoActivo } from "@/lib/turnosService";
 import { 
   Check, 
   ChevronRight, 
@@ -35,6 +37,7 @@ type Step = "vehicle" | "size" | "services" | "checkout";
 export default function POSPage() {
   const router = useRouter();
   const { vehicleSizes, basePrices, services: dynamicServices, addOrder, getMemberInfo, bays, washers, promoRules } = useConfig();
+  const { user } = useAuth();
   const [step, setStep] = React.useState<Step>("vehicle");
   const [vehicle, setVehicle] = React.useState({ placa: "", brand: "", model: "" });
   const [selectedSize, setSelectedSize] = React.useState<string | null>(null);
@@ -145,7 +148,7 @@ export default function POSPage() {
     let vehId = currentVehicleId;
     try {
         if (!vehId) {
-            const { data: newVeh } = await supabase
+            const { data: newVeh, error: vehErr } = await supabase
                 .from("vehiculos")
                 .insert({
                     placa: vehicle.placa,
@@ -155,9 +158,10 @@ export default function POSPage() {
                 })
                 .select()
                 .single();
+            if (vehErr) throw vehErr;
             if (newVeh) vehId = newVeh.id;
         } else {
-            await supabase
+            const { error: updErr } = await supabase
                 .from("vehiculos")
                 .update({
                     marca: vehicle.brand,
@@ -165,22 +169,30 @@ export default function POSPage() {
                     tamano: selectedSize as any
                 })
                 .eq("id", vehId);
+            if (updErr) throw updErr;
         }
-        
+
         if (vehId) {
             // Obtener matriz para tener un sucursal_id válido
-            const { data: matriz } = await supabase.from('sucursales').select('id').eq('es_matriz', true).single();
+            const { data: matriz, error: matrizErr } = await supabase.from('sucursales').select('id').eq('es_matriz', true).single();
+            if (matrizErr) throw matrizErr;
             if (matriz) {
-                const { data: newOrderData } = await supabase.from("ordenes_servicio").insert({
+                const turnoActivo = await getTurnoActivo(matriz.id);
+                const { data: newOrderData, error: orderErr } = await supabase.from("ordenes_servicio").insert({
                     vehiculo_id: vehId,
                     servicios: dynamicServices.filter(s => selectedServices.includes(s.id)) as any,
                     es_premium: isPremiumPackage,
                     total: calculateTotal(),
                     estado: 'Recepción',
                     metodo_pago: paymentMethod,
-                    sucursal_id: matriz.id
+                    sucursal_id: matriz.id,
+                    cajon_id: selectedBayId ?? null,
+                    lavador_id: assignedWasher ?? null,
+                    cajero_id: user?.id ?? null,
+                    turno_id: turnoActivo?.id ?? null,
                 }).select().single();
 
+                if (orderErr) throw orderErr;
                 if (newOrderData) {
                     const newOrder: Order = {
                         id: newOrderData.id,
@@ -213,38 +225,17 @@ export default function POSPage() {
                 }
             }
         }
-    } catch (err) {
-        console.error("Error saving to supabase:", err);
+    } catch (err: any) {
+        console.error("Error saving order to Supabase:", err);
+        const msg = err?.message || err?.error_description || JSON.stringify(err);
+        alert(`No se pudo registrar la orden: ${msg}`);
+        setIsFinishing(false);
+        return;
     }
 
-    // Fallback if something went wrong (should not happen in production)
-    const newOrder: Order = {
-        id: Math.random().toString(36).substr(2, 9),
-        folio: `HUN-${Math.floor(Math.random() * 9000) + 1000}`,
-        vehicle: {
-            placa: vehicle.placa,
-            brand: vehicle.brand,
-            model: vehicle.model || "Modelo no especificado",
-            size: selectedSize as any
-        },
-        services: dynamicServices.filter(s => selectedServices.includes(s.id)),
-        isPremium: isPremiumPackage,
-        basePrice: basePrices[selectedSize as string] || 0,
-        premiumPrice: PREMIUM_ADDON_PRICE,
-        total: calculateTotal(),
-        status: 'Recepción',
-        bayNumber: selectedBayId ?? undefined,
-        washerId: assignedWasher ?? undefined,
-        createdAt: new Date().toISOString(),
-        paymentMethod: paymentMethod,
-        isFree: appliedPromo?.benefit === 'free'
-    };
-
-    setTimeout(() => {
-        addOrder(newOrder);
-        setIsFinishing(false);
-        router.push('/operations');
-    }, 1000);
+    // Reached only if the happy-path above fell through without throwing (e.g. no matriz sucursal).
+    alert("No se pudo registrar la orden: no hay sucursal matriz configurada en Supabase.");
+    setIsFinishing(false);
   };
 
   return (
