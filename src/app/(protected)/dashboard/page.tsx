@@ -6,11 +6,10 @@ import { Heading } from "@/components/ui/Heading";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { 
-  TrendingUp, 
-  Users, 
-  Car, 
-  DollarSign, 
-  Calendar, 
+  TrendingUp,
+  Users,
+  Car,
+  DollarSign,
   ChevronRight,
   TrendingDown,
   ArrowUpRight,
@@ -130,9 +129,6 @@ export default function DashboardPage() {
           <p className="text-muted-foreground text-sm font-medium italic">Hunger Car Wash • Vista en tiempo real</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="glass border-white/5 font-bold uppercase tracking-widest text-[10px]">
-            <Calendar className="mr-2 w-3 h-3" /> Reportes
-          </Button>
           <Button onClick={() => setShowCorteModal(true)} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 font-black italic tracking-tighter uppercase px-6">
             Realizar Corte de Caja
           </Button>
