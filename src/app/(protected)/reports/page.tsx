@@ -101,23 +101,35 @@ export default function ReportsPage() {
   React.useEffect(() => {
     const loadRangeData = async () => {
       setLoadingOrders(true);
-      const fromISO = `${dateRange.from}T00:00:00.000Z`;
-      const toISO = `${dateRange.to}T23:59:59.999Z`;
-      const [{ data: ords }, { data: perfiles }] = await Promise.all([
-        supabase
-          .from("ordenes_servicio")
-          .select("id, folio, total, estado, metodo_pago, es_premium, cajero_id, lavador_id, turno_id, created_at, servicios, vehiculos(placa, tamano)")
-          .gte("created_at", fromISO)
-          .lte("created_at", toISO)
-          .order("created_at", { ascending: false }),
-        supabase.from("perfiles").select("id, full_name"),
-      ]);
-      setRangeOrders((ords || []) as unknown as RangeOrder[]);
-      setCajeros((perfiles || []) as Cajero[]);
-      setLoadingOrders(false);
+      try {
+        const fromISO = `${dateRange.from}T00:00:00.000Z`;
+        const toISO = `${dateRange.to}T23:59:59.999Z`;
+        const [ordsRes, perfilesRes] = await Promise.all([
+          supabase
+            .from("ordenes_servicio")
+            .select("id, folio, total, estado, metodo_pago, es_premium, cajero_id, lavador_id, turno_id, created_at, servicios, vehiculos(placa, tamano)")
+            .gte("created_at", fromISO)
+            .lte("created_at", toISO)
+            .order("created_at", { ascending: false }),
+          supabase.from("perfiles").select("id, full_name"),
+        ]);
+        if (ordsRes.error) console.error("Error cargando órdenes:", ordsRes.error);
+        if (perfilesRes.error) console.error("Error cargando perfiles:", perfilesRes.error);
+        setRangeOrders((ordsRes.data || []) as unknown as RangeOrder[]);
+        setCajeros((perfilesRes.data || []) as Cajero[]);
+      } catch (err) {
+        console.error("Error inesperado cargando reportes:", err);
+        setRangeOrders([]);
+        setCajeros([]);
+      } finally {
+        setLoadingOrders(false);
+      }
     };
     loadRangeData();
   }, [dateRange.from, dateRange.to]);
+
+  // --- Modal de detalle de corte ---
+  const [selectedTurno, setSelectedTurno] = React.useState<Turno | null>(null);
 
   // --- Indicadores globales del rango ---
   const totalRevenue = rangeOrders.reduce((acc, curr) => acc + (curr.total || 0), 0);
@@ -596,7 +608,7 @@ export default function ReportsPage() {
             <History className="w-4 h-4 text-primary" /> Historial de Cortes de Caja
           </CardTitle>
           <CardDescription className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            Últimos 50 turnos registrados
+            Últimos 50 turnos registrados · Doble click para ver detalle
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -635,7 +647,11 @@ export default function ReportsPage() {
                             ? 'text-yellow-400'
                             : 'text-red-400';
                     return (
-                      <tr key={t.id} className="hover:bg-white/5 transition-all">
+                      <tr
+                        key={t.id}
+                        onDoubleClick={() => setSelectedTurno(t)}
+                        className="hover:bg-white/5 transition-all cursor-pointer select-none"
+                      >
                         <td className="p-3">
                           {t.fecha_apertura
                             ? new Date(t.fecha_apertura).toLocaleString('es-MX')
@@ -684,6 +700,143 @@ export default function ReportsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de detalle de corte */}
+      {selectedTurno && (() => {
+        const t = selectedTurno;
+        const dif = t.diferencia ?? 0;
+        const difColor = t.estado !== 'cerrado'
+          ? 'text-muted-foreground'
+          : dif === 0 ? 'text-green-400' : dif > 0 ? 'text-yellow-400' : 'text-red-400';
+        const ordersCount = ordersByTurno[t.id] ?? 0;
+        const turnoOrders = rangeOrders.filter(o => o.turno_id === t.id);
+        const cajeroNombre = cajeros.find(c => c.id === t.usuario_id)?.full_name || '—';
+        const efectivo = turnoOrders.filter(o => o.metodo_pago === 'Efectivo').reduce((s, o) => s + (o.total || 0), 0);
+        const tarjeta = turnoOrders.filter(o => o.metodo_pago === 'Tarjeta').reduce((s, o) => s + (o.total || 0), 0);
+        const membresia = turnoOrders.filter(o => o.metodo_pago === 'Membresía').reduce((s, o) => s + (o.total || 0), 0);
+        return (
+          <div
+            onClick={() => setSelectedTurno(null)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="glass border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Detalle de corte</p>
+                  <h3 className="text-2xl font-black italic tracking-tighter">
+                    {t.fecha_apertura ? new Date(t.fecha_apertura).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setSelectedTurno(null)}
+                  className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all"
+                  aria-label="Cerrar"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Apertura</p>
+                    <p className="text-sm font-bold">{t.fecha_apertura ? new Date(t.fecha_apertura).toLocaleString('es-MX') : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Cierre</p>
+                    <p className="text-sm font-bold">{t.fecha_cierre ? new Date(t.fecha_cierre).toLocaleString('es-MX') : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Cajero</p>
+                    <p className="text-sm font-bold">{cajeroNombre}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Estado</p>
+                    <span className={cn(
+                      'inline-block px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest',
+                      t.estado === 'cerrado' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
+                    )}>
+                      {t.estado}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="glass border border-white/5 rounded-xl p-4 text-center">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Efectivo</p>
+                    <p className="text-lg font-black italic tracking-tighter">${efectivo.toLocaleString()}</p>
+                  </div>
+                  <div className="glass border border-white/5 rounded-xl p-4 text-center">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Tarjeta</p>
+                    <p className="text-lg font-black italic tracking-tighter">${tarjeta.toLocaleString()}</p>
+                  </div>
+                  <div className="glass border border-white/5 rounded-xl p-4 text-center">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Membresía</p>
+                    <p className="text-lg font-black italic tracking-tighter">${membresia.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div className="glass border border-white/5 rounded-xl p-4 space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Monto inicial</span>
+                    <span className="font-black">${(t.monto_inicial ?? 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Sistema</span>
+                    <span className="font-black">${(t.monto_sistema ?? 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Declarado</span>
+                    <span className="font-black">${(t.monto_declarado ?? 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-base pt-3 border-t border-white/5">
+                    <span className="font-black uppercase text-[10px] tracking-widest">Diferencia</span>
+                    <span className={cn('font-black italic tracking-tighter', difColor)}>
+                      {t.estado === 'cerrado' ? `${dif > 0 ? '+' : ''}$${dif.toLocaleString()}` : '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-3 border-t border-white/5">
+                    <span className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Órdenes en el turno</span>
+                    <span className="font-black">{ordersCount}</span>
+                  </div>
+                </div>
+
+                {turnoOrders.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Órdenes</p>
+                    <div className="glass border border-white/5 rounded-xl overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/5 border-b border-white/5">
+                          <tr className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                            <th className="p-2 text-left">Folio</th>
+                            <th className="p-2 text-left">Placa</th>
+                            <th className="p-2 text-right">Total</th>
+                            <th className="p-2 text-left">Método</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {turnoOrders.map(o => (
+                            <tr key={o.id}>
+                              <td className="p-2 font-bold">#{o.folio}</td>
+                              <td className="p-2">{o.vehiculos?.placa || '—'}</td>
+                              <td className="p-2 text-right font-bold">${(o.total || 0).toLocaleString()}</td>
+                              <td className="p-2 text-muted-foreground">{o.metodo_pago || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
