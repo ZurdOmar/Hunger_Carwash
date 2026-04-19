@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { VehicleSize, Service, Order, Member, Bay, PromoRule, Washer } from "./types";
-import { VEHICLE_SIZES, SERVICES, BASE_PRICES } from "./data";
 import { supabase } from "./supabase";
 
 interface VehicleSizeConfig {
@@ -55,88 +54,50 @@ interface ConfigContextType {
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
-  const [vehicleSizes, setVehicleSizes] = useState<VehicleSizeConfig[]>(VEHICLE_SIZES);
-  const [services, setServices] = useState<Service[]>(SERVICES);
-  const [basePrices, setBasePrices] = useState(BASE_PRICES);
+  // Todo el estado inicia vacío: la fuente de verdad es Supabase.
+  const [vehicleSizes, setVehicleSizes] = useState<VehicleSizeConfig[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [basePrices, setBasePrices] = useState<Record<string, number>>({});
   const [orders, setOrders] = useState<Order[]>([]);
-  
-  // Recursos e Infraestructura (vacíos hasta que Supabase responda; seeds se
-  // insertan en DB si la tabla viene vacía, para que los IDs sean reales).
   const [washers, setWashers] = useState<Washer[]>([]);
   const [bays, setBays] = useState<Bay[]>([]);
-
-  // Fidelización
   const [members, setMembers] = useState<Member[]>([]);
-  const [promoRules, setPromoRules] = useState<PromoRule[]>([
-    { id: 'welcome-promo', name: 'Bienvenida Hunger', visitThreshold: 1, benefit: 'discount', discountPercent: 10, isActive: true },
-    { id: 'free-wash-5', name: '5to Lavado Gratis', visitThreshold: 5, benefit: 'free', isActive: true }
-  ]);
+  const [promoRules, setPromoRules] = useState<PromoRule[]>([]);
 
-  // Persistencia y Conexión con Supabase
+  // Persistencia y Conexión con Supabase (fuente única de verdad)
   useEffect(() => {
+    // Limpieza defensiva de claves legadas (cuando el cliente migra desde versiones previas
+    // que aún escribían datos de negocio a localStorage). No toca preferencias de UI.
+    [
+      "hunger_migrated_to_db", "hunger_vehicle_sizes", "hunger_base_prices",
+      "hunger_services", "hunger_washers", "hunger_bays", "hunger_promos",
+      "hunger_orders", "hunger_members",
+    ].forEach(k => localStorage.removeItem(k));
+
     const syncWithSupabase = async () => {
-      const migrated = localStorage.getItem("hunger_migrated_to_db");
-      
-      if (!migrated) {
-        // --- ONE-TIME MIGRATION FROM LOCALSTORAGE ---
-        const saved = {
-            sizes: localStorage.getItem("hunger_vehicle_sizes"),
-            prices: localStorage.getItem("hunger_base_prices"),
-            services: localStorage.getItem("hunger_services"),
-            washers: localStorage.getItem("hunger_washers"),
-            bays: localStorage.getItem("hunger_bays"),
-            promos: localStorage.getItem("hunger_promos")
-        };
+      const [
+        pricesRes, servicesRes, washersRes, baysRes, promosRes
+      ] = await Promise.all([
+        supabase.from("precios_base").select("*").order("id"),
+        supabase.from("servicios").select("*"),
+        supabase.from("lavadores").select("*"),
+        supabase.from("cajones").select("*").order("id"),
+        supabase.from("reglas_promocion").select("*"),
+      ]);
 
-        if (saved.prices) {
-            const prices = JSON.parse(saved.prices);
-            for (const [key, val] of Object.entries(prices)) {
-                await supabase.from("precios_base").insert({ tamano: key as any, precio: val as number });
-            }
-        }
-        if (saved.services) {
-            const svcs = JSON.parse(saved.services);
-            for (const s of svcs) {
-                await supabase.from("servicios").insert({ nombre: s.name, descripcion: s.description, precio_base: s.basePrice, is_hidden: s.isHidden });
-            }
-        }
-        if (saved.washers) {
-            const ws = JSON.parse(saved.washers);
-            for (const w of ws) {
-                await supabase.from("lavadores").insert({ id: w.id, nombre_completo: w.fullName, activo: w.isActive, created_at: w.createdAt, deactivated_at: w.deactivatedAt });
-            }
-        }
-        if (saved.bays) {
-            const bs = JSON.parse(saved.bays);
-            for (const b of bs) {
-                await supabase.from("cajones").insert({ label: b.label, default_lavador_id: b.defaultWasherId || null });
-            }
-        }
-        if (saved.promos) {
-            const ps = JSON.parse(saved.promos);
-            for (const p of ps) {
-                await supabase.from("reglas_promocion").insert({ id: p.id, nombre: p.name, visitas_requeridas: p.visitThreshold, beneficio: p.benefit, porcentaje_descuento: p.discountPercent || null, activo: p.isActive });
-            }
-        }
-        
-        localStorage.setItem("hunger_migrated_to_db", "true");
-        // Clear local storage copies so they don't get out of sync
-        localStorage.removeItem("hunger_base_prices");
-        localStorage.removeItem("hunger_services");
-        localStorage.removeItem("hunger_washers");
-        localStorage.removeItem("hunger_bays");
-        localStorage.removeItem("hunger_promos");
-      }
+      if (pricesRes.error)   console.error("precios_base:",   pricesRes.error);
+      if (servicesRes.error) console.error("servicios:",      servicesRes.error);
+      if (washersRes.error)  console.error("lavadores:",      washersRes.error);
+      if (baysRes.error)     console.error("cajones:",        baysRes.error);
+      if (promosRes.error)   console.error("reglas_promocion:", promosRes.error);
 
-      // --- FETCH FROM DB ---
-      const { data: dbPrices } = await supabase.from("precios_base").select("*");
-      const { data: dbServices } = await supabase.from("servicios").select("*");
-      let { data: dbWashers } = await supabase.from("lavadores").select("*");
-      let { data: dbBays } = await supabase.from("cajones").select("*");
-      const { data: dbPromos } = await supabase.from("reglas_promocion").select("*");
+      let dbPrices  = pricesRes.data;
+      const dbServices = servicesRes.data;
+      let dbWashers = washersRes.data;
+      let dbBays    = baysRes.data;
+      const dbPromos = promosRes.data;
 
-      // Si las tablas vienen vacías, sembrar defaults y recargar para obtener
-      // IDs reales (evita FK violations al crear órdenes).
+      // Seed defaults si las tablas vienen vacías (para obtener IDs reales).
       if (!dbWashers || dbWashers.length === 0) {
         await supabase.from("lavadores").insert([
           { nombre_completo: "Jeran", activo: true },
@@ -150,55 +111,77 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
       if (!dbBays || dbBays.length === 0) {
         await supabase.from("cajones").insert([
-          { label: "Cajón 1" },
-          { label: "Cajón 2" },
-          { label: "Cajón 3" },
-          { label: "Cajón 4" },
-          { label: "Cajón 5" },
+          { label: "Cajón 1" }, { label: "Cajón 2" }, { label: "Cajón 3" },
+          { label: "Cajón 4" }, { label: "Cajón 5" },
         ]);
-        const { data } = await supabase.from("cajones").select("*");
+        const { data } = await supabase.from("cajones").select("*").order("id");
         dbBays = data;
       }
 
-      if (dbPrices && dbPrices.length > 0) {
-          const pb: Record<string, number> = {};
-          dbPrices.forEach(row => pb[row.tamano] = row.precio);
-          setBasePrices(pb);
-      }
-      
-      if (dbServices && dbServices.length > 0) {
-          setServices(dbServices.map(s => ({
-              id: s.id, name: s.nombre, description: s.descripcion || "", basePrice: s.precio_base, isHidden: s.is_hidden || false
-          })));
-      }
-
-      if (dbWashers && dbWashers.length > 0) {
-          setWashers(dbWashers.map(w => ({
-              id: w.id, fullName: w.nombre_completo, isActive: w.activo ?? true, createdAt: w.created_at || "", deactivatedAt: w.deactivated_at || undefined
-          })));
+      if (!dbPrices || dbPrices.length === 0) {
+        await supabase.from("precios_base").insert([
+          { tamano: "Carro Chico",       label: "Chico",       icon: "🚗", precio: 110, is_hidden: false } as any,
+          { tamano: "Carro Mediano",     label: "Mediano",     icon: "🚘", precio: 115, is_hidden: false } as any,
+          { tamano: "Camioneta Mediana", label: "Camioneta M", icon: "🚙", precio: 120, is_hidden: false } as any,
+          { tamano: "Camioneta Grande",  label: "Camioneta G", icon: "🚐", precio: 140, is_hidden: false } as any,
+          { tamano: "Van",               label: "Van / XL",    icon: "🚌", precio: 180, is_hidden: false } as any,
+        ]);
+        const { data } = await supabase.from("precios_base").select("*").order("id");
+        dbPrices = data;
       }
 
-      if (dbBays && dbBays.length > 0) {
-          setBays(dbBays.map(b => ({
-              id: b.id, label: b.label, defaultWasherId: b.default_lavador_id || undefined
-          })));
+      if (dbPrices) {
+        const pb: Record<string, number> = {};
+        const sizes: VehicleSizeConfig[] = dbPrices.map((row: any) => {
+          pb[row.tamano] = row.precio;
+          return {
+            value: row.tamano as VehicleSize,
+            label: row.label || row.tamano,
+            icon: row.icon || "🚗",
+            isHidden: row.is_hidden || false,
+          };
+        });
+        setBasePrices(pb);
+        setVehicleSizes(sizes);
       }
 
-      if (dbPromos && dbPromos.length > 0) {
-          setPromoRules(dbPromos.map(p => ({
-              id: p.id, name: p.nombre, visitThreshold: p.visitas_requeridas, benefit: p.beneficio as any, discountPercent: p.porcentaje_descuento || undefined, isActive: p.activo ?? true
-          })));
+      if (dbServices) {
+        setServices(dbServices.map((s: any) => ({
+          id: s.id, name: s.nombre, description: s.descripcion || "",
+          basePrice: s.precio_base, isHidden: s.is_hidden || false
+        })));
       }
 
-      // Load active orders from Supabase (join vehiculos so placa/marca/modelo/tamano come through)
-      const { data: dbOrders } = await supabase
+      if (dbWashers) {
+        setWashers(dbWashers.map((w: any) => ({
+          id: w.id, fullName: w.nombre_completo, isActive: w.activo ?? true,
+          createdAt: w.created_at || "", deactivatedAt: w.deactivated_at || undefined
+        })));
+      }
+
+      if (dbBays) {
+        setBays(dbBays.map((b: any) => ({
+          id: b.id, label: b.label, defaultWasherId: b.default_lavador_id || undefined
+        })));
+      }
+
+      if (dbPromos) {
+        setPromoRules(dbPromos.map((p: any) => ({
+          id: p.id, name: p.nombre, visitThreshold: p.visitas_requeridas,
+          benefit: p.beneficio as any, discountPercent: p.porcentaje_descuento || undefined,
+          isActive: p.activo ?? true
+        })));
+      }
+
+      const { data: dbOrders, error: ordersErr } = await supabase
         .from("ordenes_servicio")
         .select("*, vehiculos(*)")
         .neq("estado", "Entregado")
         .order("created_at", { ascending: false });
+      if (ordersErr) console.error("ordenes_servicio:", ordersErr);
 
       if (dbOrders) {
-        const mapped = dbOrders.map((o: any) => ({
+        setOrders(dbOrders.map((o: any) => ({
           id: o.id,
           folio: `${o.folio}`,
           vehicle: {
@@ -217,31 +200,25 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           bayNumber: o.cajon_id || undefined,
           createdAt: o.created_at || new Date().toISOString(),
           paymentMethod: o.metodo_pago || undefined,
-        }));
-        setOrders(mapped);
+        })));
       }
 
-      // Load members from Supabase (vehiculos + count ordenes)
-      const { data: dbVehiculos } = await supabase
+      const { data: dbVehiculos, error: vehErr } = await supabase
         .from("vehiculos")
         .select("id, placa, marca, modelo, clientes (nombre), ordenes_servicio (count)")
         .order("created_at", { ascending: false });
+      if (vehErr) console.error("vehiculos:", vehErr);
 
       if (dbVehiculos) {
-        const mapped = dbVehiculos.map((v: any) => ({
+        setMembers(dbVehiculos.map((v: any) => ({
           id: v.id,
           placa: v.placa,
           name: v.clientes?.nombre || undefined,
           totalWashings: v.ordenes_servicio?.[0]?.count || 0,
           lastVisit: new Date().toISOString(),
           joinedAt: new Date().toISOString(),
-        }));
-        setMembers(mapped);
+        })));
       }
-
-      // Best-effort cleanup of any legacy keys that might still exist from older builds
-      localStorage.removeItem("hunger_orders");
-      localStorage.removeItem("hunger_members");
     };
 
     syncWithSupabase();
@@ -249,37 +226,68 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   // --- Catálogos ---
   const addVehicleSize = async (name: string, price: number) => {
-    const newSize: VehicleSizeConfig = { label: name.toUpperCase(), value: name as VehicleSize, icon: "🚗", isHidden: false };
-    const updated = [...vehicleSizes, newSize];
-    setVehicleSizes(updated);
-    
-    const newPrices = { ...basePrices, [name]: price };
-    setBasePrices(newPrices);
-    localStorage.setItem("hunger_vehicle_sizes", JSON.stringify(updated));
-    await supabase.from("precios_base").insert({ tamano: name as any, precio: price });
+    const tamano = name.trim();
+    if (!tamano) return;
+
+    const { error } = await supabase
+      .from("precios_base")
+      .insert({ tamano, label: tamano, icon: "🚗", precio: price, is_hidden: false } as any);
+
+    if (error) {
+      console.error("addVehicleSize error:", error);
+      alert(`No se pudo guardar el tamaño "${tamano}": ${error.message}`);
+      return;
+    }
+
+    setVehicleSizes(prev => [...prev, { value: tamano as VehicleSize, label: tamano, icon: "🚗", isHidden: false }]);
+    setBasePrices(prev => ({ ...prev, [tamano]: price }));
   };
 
   const addService = async (name: string, price: number, appliesToAll: boolean) => {
-    // Generate UUID or let Supabase insert returning
-    const { data } = await supabase.from("servicios").insert({ nombre: name, descripcion: "Personalizado", precio_base: price, is_hidden: false }).select().single();
-    if(data) {
-        const newS = { id: data.id, name: data.nombre, description: data.descripcion || "", basePrice: data.precio_base, isHidden: data.is_hidden || false };
-        setServices([...services, newS]);
+    const { data, error } = await supabase
+      .from("servicios")
+      .insert({ nombre: name, descripcion: "Personalizado", precio_base: price, is_hidden: false })
+      .select()
+      .single();
+    if (error) {
+      console.error("addService error:", error);
+      alert(`No se pudo crear el servicio "${name}": ${error.message}`);
+      return;
+    }
+    if (data) {
+      setServices(prev => [...prev, {
+        id: data.id, name: data.nombre, description: data.descripcion || "",
+        basePrice: data.precio_base, isHidden: data.is_hidden || false
+      }]);
     }
   };
 
   const toggleVisibility = async (id: string, type: 'size' | 'service') => {
     if (type === 'size') {
-        const u = vehicleSizes.map(s => s.value === id ? { ...s, isHidden: !s.isHidden } : s);
-        setVehicleSizes(u);
-        localStorage.setItem("hunger_vehicle_sizes", JSON.stringify(u));
+        const target = vehicleSizes.find(s => s.value === id);
+        if (!target) return;
+        const newHidden = !target.isHidden;
+        const { error } = await supabase
+          .from('precios_base')
+          .update({ is_hidden: newHidden } as any)
+          .eq('tamano', id as any);
+        if (error) {
+          console.error("toggleVisibility size error:", error);
+          alert(`No se pudo actualizar visibilidad: ${error.message}`);
+          return;
+        }
+        setVehicleSizes(prev => prev.map(s => s.value === id ? { ...s, isHidden: newHidden } : s));
     } else {
         const target = services.find(s => s.id === id);
-        if (target) {
-            const newHidden = !target.isHidden;
-            setServices(services.map(s => s.id === id ? { ...s, isHidden: newHidden } : s));
-            await supabase.from('servicios').update({ is_hidden: newHidden }).eq('id', id);
+        if (!target) return;
+        const newHidden = !target.isHidden;
+        const { error } = await supabase.from('servicios').update({ is_hidden: newHidden }).eq('id', id);
+        if (error) {
+          console.error("toggleVisibility service error:", error);
+          alert(`No se pudo actualizar visibilidad: ${error.message}`);
+          return;
         }
+        setServices(prev => prev.map(s => s.id === id ? { ...s, isHidden: newHidden } : s));
     }
   };
 

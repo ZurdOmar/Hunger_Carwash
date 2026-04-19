@@ -86,11 +86,13 @@ export default function POSPage() {
     if (step === "vehicle" && vehicle.placa) {
         setIsLoading(true);
         try {
-            const { data: existingVehicle } = await supabase
+            const { data: existingVehicle, error: vehLookupErr } = await supabase
                 .from("vehiculos")
                 .select("*")
                 .eq("placa", vehicle.placa)
                 .maybeSingle();
+
+            if (vehLookupErr) throw vehLookupErr;
 
             let previousWashings = 0;
             if (existingVehicle) {
@@ -102,11 +104,12 @@ export default function POSPage() {
                 });
                 setSelectedSize(existingVehicle.tamano);
 
-                const { count } = await supabase
+                const { count, error: countErr } = await supabase
                     .from("ordenes_servicio")
                     .select("*", { count: "exact", head: true })
                     .eq("vehiculo_id", existingVehicle.id);
-                
+                if (countErr) throw countErr;
+
                 previousWashings = count || 0;
             } else {
                 setCurrentVehicleId(null);
@@ -115,16 +118,16 @@ export default function POSPage() {
             const info = getMemberInfo(vehicle.placa);
             const mergedInfo = { ...info, totalWashings: previousWashings };
             setMemberData(mergedInfo as any);
-            
+
             const currentVisit = previousWashings + 1;
             const promo = promoRules.find(p => p.isActive && p.visitThreshold === currentVisit);
             setDetectedPromo(promo || null);
             setAppliedPromo(null);
-            
+
             setStep("size");
-        } catch (error) {
-            console.error("Error fetching vehicle:", error);
-            setStep("size");
+        } catch (error: any) {
+            console.error("Error buscando vehículo:", error);
+            alert(`No se pudo buscar el vehículo: ${error?.message || error}`);
         } finally {
             setIsLoading(false);
         }

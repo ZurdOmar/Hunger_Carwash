@@ -233,17 +233,26 @@ export type Database = {
         Row: {
           id: number
           precio: number
-          tamano: Database["public"]["Enums"]["tamano_vehiculo"]
+          tamano: string
+          label: string
+          icon: string | null
+          is_hidden: boolean | null
         }
         Insert: {
           id?: number
           precio: number
-          tamano: Database["public"]["Enums"]["tamano_vehiculo"]
+          tamano: string
+          label: string
+          icon?: string | null
+          is_hidden?: boolean | null
         }
         Update: {
           id?: number
           precio?: number
-          tamano?: Database["public"]["Enums"]["tamano_vehiculo"]
+          tamano?: string
+          label?: string
+          icon?: string | null
+          is_hidden?: boolean | null
         }
         Relationships: []
       }
@@ -400,7 +409,7 @@ export type Database = {
           marca: string | null
           modelo: string | null
           placa: string
-          tamano: Database["public"]["Enums"]["tamano_vehiculo"]
+          tamano: string
         }
         Insert: {
           cliente_id?: string | null
@@ -409,7 +418,7 @@ export type Database = {
           marca?: string | null
           modelo?: string | null
           placa: string
-          tamano: Database["public"]["Enums"]["tamano_vehiculo"]
+          tamano: string
         }
         Update: {
           cliente_id?: string | null
@@ -418,7 +427,7 @@ export type Database = {
           marca?: string | null
           modelo?: string | null
           placa?: string
-          tamano?: Database["public"]["Enums"]["tamano_vehiculo"]
+          tamano?: string
         }
         Relationships: [
           {
@@ -441,12 +450,6 @@ export type Database = {
       estado_membresia: "Activa" | "Cancelada" | "Vencida"
       estado_orden: "Recepción" | "Lavado" | "Secado" | "Listo" | "Entregado"
       metodo_pago: "Efectivo" | "Tarjeta" | "Membresía"
-      tamano_vehiculo:
-        | "Carro Chico"
-        | "Carro Mediano"
-        | "Camioneta Mediana"
-        | "Camioneta Grande"
-        | "Van"
       tipo_membresia: "Bronce" | "Plata" | "Oro"
     }
     CompositeTypes: {
@@ -578,13 +581,6 @@ export const Constants = {
       estado_membresia: ["Activa", "Cancelada", "Vencida"],
       estado_orden: ["Recepción", "Lavado", "Secado", "Listo", "Entregado"],
       metodo_pago: ["Efectivo", "Tarjeta", "Membresía"],
-      tamano_vehiculo: [
-        "Carro Chico",
-        "Carro Mediano",
-        "Camioneta Mediana",
-        "Camioneta Grande",
-        "Van",
-      ],
       tipo_membresia: ["Bronce", "Plata", "Oro"],
     },
   },

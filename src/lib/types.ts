@@ -1,4 +1,5 @@
-export type VehicleSize = 'Carro Chico' | 'Carro Mediano' | 'Camioneta Mediana' | 'Camioneta Grande' | 'Van';
+// Dynamic: the catalog lives in precios_base (Supabase). Any string the admin captures is valid.
+export type VehicleSize = string;
 
 export type OrderStatus = 'Recepción' | 'Lavado' | 'Secado' | 'Listo' | 'Entregado';
 
@@ -40,14 +41,6 @@ export interface Order {
   paymentMethod?: 'Efectivo' | 'Tarjeta' | 'Membresía';
   isFree?: boolean; // Indica si se aplicó promoción de lavado gratis
 }
-
-export const BASE_PRICES: Record<VehicleSize, number> = {
-  'Carro Chico': 110,
-  'Carro Mediano': 115,
-  'Camioneta Mediana': 120,
-  'Camioneta Grande': 140,
-  'Van': 180,
-};
 
 export const PREMIUM_ADDON_PRICE = 100;
 
