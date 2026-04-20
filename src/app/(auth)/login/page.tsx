@@ -1,27 +1,65 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Logo } from '@/components/Logo'
-import { AlertCircle, Loader } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader, Eye, EyeOff } from 'lucide-react'
+
+type PageMode = 'login' | 'set-password' | 'loading'
 
 export default function LoginPage() {
   const router = useRouter()
+  const [mode, setMode] = useState<PageMode>('loading')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [loginAttempts, setLoginAttempts] = useState(0)
   const [isBlocked, setIsBlocked] = useState(false)
+
+  useEffect(() => {
+    // Check if the URL has a hash fragment with access_token (invite link)
+    const hash = window.location.hash
+    if (hash && hash.includes('access_token')) {
+      // Supabase client will automatically pick up the token from the URL hash
+      // Listen for the auth state change
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            // Check if this user needs to set a password (invited user)
+            const userMeta = session.user.user_metadata
+            const isInvited = session.user.app_metadata?.provider === 'email'
+              && !userMeta?.password_set
+
+            if (isInvited || hash.includes('type=invite')) {
+              setEmail(session.user.email || '')
+              setMode('set-password')
+            } else {
+              // Already has a password, redirect to app
+              router.push('/pos')
+              router.refresh()
+            }
+          }
+        }
+      )
+
+      return () => subscription?.unsubscribe()
+    } else {
+      // No hash fragment — show normal login
+      setMode('login')
+    }
+  }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // Rate limiting: 5 intentos cada 15 minutos
     if (isBlocked) {
       setError('Demasiados intentos fallidos. Intenta más tarde.')
       return
@@ -30,7 +68,6 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Validación básica de input
       if (!email || !password) {
         setError('Ingresa tu correo y contraseña')
         setLoading(false)
@@ -43,7 +80,6 @@ export default function LoginPage() {
         return
       }
 
-      // Longitud máxima
       if (email.length > 254 || password.length > 128) {
         setError('Entrada muy larga')
         setLoading(false)
@@ -56,37 +92,87 @@ export default function LoginPage() {
       })
 
       if (authError) {
-        // Incrementar contador de intentos fallidos
         const newAttempts = loginAttempts + 1
         setLoginAttempts(newAttempts)
 
-        // Bloquear después de 5 intentos fallidos
         if (newAttempts >= 5) {
           setIsBlocked(true)
           setError('Cuenta bloqueada temporalmente. Intenta en 15 minutos.')
 
-          // Desbloquear después de 15 minutos
           setTimeout(() => {
             setIsBlocked(false)
             setLoginAttempts(0)
           }, 15 * 60 * 1000)
         } else {
-          // Mensaje genérico para no revelar si existe el usuario
           setError('Correo o contraseña incorrectos')
         }
         setLoading(false)
         return
       }
 
-      // Login exitoso - resetear intentos
       setLoginAttempts(0)
       setIsBlocked(false)
       router.push('/pos')
       router.refresh()
-    } catch (err) {
+    } catch {
       setError('Error al iniciar sesión. Intenta de nuevo.')
       setLoading(false)
     }
+  }
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSuccess(null)
+
+    if (!password || !confirmPassword) {
+      setError('Ingresa y confirma tu contraseña')
+      return
+    }
+
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+        data: { password_set: true },
+      })
+
+      if (updateError) {
+        setError(updateError.message)
+        setLoading(false)
+        return
+      }
+
+      setSuccess('¡Contraseña creada exitosamente! Redirigiendo...')
+
+      setTimeout(() => {
+        router.push('/pos')
+        router.refresh()
+      }, 1500)
+    } catch {
+      setError('Error al establecer la contraseña. Intenta de nuevo.')
+      setLoading(false)
+    }
+  }
+
+  // Loading state while checking for invite token
+  if (mode === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -101,61 +187,149 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-surface-container-lowest border border-white/5 rounded-2xl p-8 backdrop-blur-xl">
-          <h1 className="text-3xl font-bold text-foreground mb-2 text-center">Bienvenido</h1>
-          <p className="text-muted-foreground text-center mb-8">
-            Inicia sesión en Hunger Car Wash ERP
-          </p>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            {error && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
-            )}
+          {/* ===== SET PASSWORD MODE (Invited User) ===== */}
+          {mode === 'set-password' && (
+            <>
+              <h1 className="text-3xl font-bold text-foreground mb-2 text-center">
+                ¡Bienvenido al equipo!
+              </h1>
+              <p className="text-muted-foreground text-center mb-2">
+                Crea tu contraseña para acceder
+              </p>
+              <p className="text-sm text-primary text-center mb-6">
+                {email}
+              </p>
 
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Correo electrónico
-              </label>
-              <Input
-                type="email"
-                placeholder="tu@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-                className="w-full h-10"
-              />
-            </div>
+              <form onSubmit={handleSetPassword} className="space-y-4">
+                {error && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
 
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Contraseña
-              </label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                className="w-full h-10"
-              />
-            </div>
+                {success && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    <p className="text-sm text-green-400">{success}</p>
+                  </div>
+                )}
 
-            <Button
-              type="submit"
-              disabled={loading || isBlocked}
-              className="w-full h-10 font-bold uppercase tracking-widest"
-            >
-              {loading ? (
-                <Loader className="w-4 h-4 animate-spin" />
-              ) : isBlocked ? (
-                'Bloqueado temporalmente'
-              ) : (
-                'Iniciar Sesión'
-              )}
-            </Button>
-          </form>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Nueva contraseña
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Mínimo 8 caracteres"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading || !!success}
+                      className="w-full h-10 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Confirmar contraseña
+                  </label>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Repite tu contraseña"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading || !!success}
+                    className="w-full h-10"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading || !!success}
+                  className="w-full h-10 font-bold uppercase tracking-widest"
+                >
+                  {loading ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : success ? (
+                    '✓ Listo'
+                  ) : (
+                    'Crear Contraseña'
+                  )}
+                </Button>
+              </form>
+            </>
+          )}
+
+          {/* ===== LOGIN MODE (Normal) ===== */}
+          {mode === 'login' && (
+            <>
+              <h1 className="text-3xl font-bold text-foreground mb-2 text-center">Bienvenido</h1>
+              <p className="text-muted-foreground text-center mb-8">
+                Inicia sesión en Hunger Car Wash ERP
+              </p>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                {error && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Correo electrónico
+                  </label>
+                  <Input
+                    type="email"
+                    placeholder="tu@ejemplo.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    className="w-full h-10"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Contraseña
+                  </label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    className="w-full h-10"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading || isBlocked}
+                  className="w-full h-10 font-bold uppercase tracking-widest"
+                >
+                  {loading ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : isBlocked ? (
+                    'Bloqueado temporalmente'
+                  ) : (
+                    'Iniciar Sesión'
+                  )}
+                </Button>
+              </form>
+            </>
+          )}
 
         </div>
       </div>
