@@ -55,6 +55,66 @@ export default function POSPage() {
   const [appliedPromo, setAppliedPromo] = React.useState<PromoRule | null>(null);
   const [detectedPromo, setDetectedPromo] = React.useState<PromoRule | null>(null);
 
+  // Historial del vehículo (búsqueda en vivo mientras escriben la placa)
+  type PlacaHistoryItem = {
+    id: string;
+    folio: number;
+    created_at: string | null;
+    total: number;
+    metodo_pago: string | null;
+    estado: string;
+    tamano: string | null;
+  };
+  const [placaHistory, setPlacaHistory] = React.useState<PlacaHistoryItem[]>([]);
+  const [placaHistoryLoading, setPlacaHistoryLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    const placa = vehicle.placa.trim().toUpperCase();
+    if (placa.length < 3) {
+      setPlacaHistory([]);
+      return;
+    }
+    let cancelled = false;
+    setPlacaHistoryLoading(true);
+    const id = setTimeout(async () => {
+      try {
+        const { data: veh } = await supabase
+          .from('vehiculos')
+          .select('id, tamano')
+          .eq('placa', placa)
+          .maybeSingle();
+        if (cancelled) return;
+        if (!veh) {
+          setPlacaHistory([]);
+          return;
+        }
+        const { data: ords } = await supabase
+          .from('ordenes_servicio')
+          .select('id, folio, created_at, total, metodo_pago, estado')
+          .eq('vehiculo_id', veh.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        if (cancelled) return;
+        setPlacaHistory(
+          (ords || []).map((o: any) => ({
+            id: o.id,
+            folio: o.folio,
+            created_at: o.created_at,
+            total: o.total || 0,
+            metodo_pago: o.metodo_pago,
+            estado: o.estado,
+            tamano: veh.tamano || null,
+          }))
+        );
+      } catch (e) {
+        console.error('Error cargando historial de placa:', e);
+      } finally {
+        if (!cancelled) setPlacaHistoryLoading(false);
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [vehicle.placa]);
+
   const visibleSizes = vehicleSizes.filter(s => !s.isHidden);
 
   const calculateTotal = () => {
@@ -290,6 +350,47 @@ export default function POSPage() {
                         </select>
                     </div>
                 </div>
+                {(placaHistoryLoading || placaHistory.length > 0) && (
+                  <div className="rounded-2xl border border-primary/20 bg-primary/5 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                        Historial del vehículo
+                      </p>
+                      {placaHistory.length > 0 && (
+                        <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[9px] font-black tracking-widest">
+                          {placaHistory.length} {placaHistory.length === 1 ? 'visita' : 'visitas'}
+                        </Badge>
+                      )}
+                    </div>
+                    {placaHistoryLoading ? (
+                      <div className="p-4 text-center text-[10px] uppercase tracking-widest text-muted-foreground">
+                        Buscando…
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-white/5">
+                        {placaHistory.map((h) => (
+                          <li key={h.id} className="px-4 py-3 flex items-center justify-between gap-3 text-xs">
+                            <div className="flex flex-col">
+                              <span className="font-black tracking-widest">#{h.folio}</span>
+                              <span className="text-[10px] text-muted-foreground font-bold">
+                                {h.created_at ? new Date(h.created_at).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                {h.metodo_pago || 'N/A'}
+                              </span>
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
+                                {h.estado}
+                              </span>
+                              <span className="font-black italic tracking-tighter">${h.total.toLocaleString()}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
                 <Button className="w-full h-16 text-lg font-black italic tracking-tighter shadow-primary/20 shadow-xl" size="lg" disabled={!vehicle.placa || isLoading} onClick={handleNextStep}>
                    {isLoading ? "BUSCANDO VEHÍCULO..." : <div className="flex items-center justify-center">CONTINUAR PROCESO <ChevronRight className="ml-2 w-5 h-5" /></div>}
                 </Button>

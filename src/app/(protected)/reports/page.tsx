@@ -226,14 +226,30 @@ export default function ReportsPage() {
   const maxDailyRevenue = Math.max(1, ...dailyStats.map(d => d.revenue));
 
   // --- Historial con conteo de órdenes por turno ---
+  // Órdenes con turno_id se asignan directo; órdenes huérfanas (turno_id=null)
+  // se asignan al turno cuya ventana fecha_apertura..fecha_cierre las contenga.
   const ordersByTurno = React.useMemo(() => {
     const map: Record<string, number> = {};
     for (const o of rangeOrders) {
-      if (!o.turno_id) continue;
-      map[o.turno_id] = (map[o.turno_id] || 0) + 1;
+      if (o.turno_id) {
+        map[o.turno_id] = (map[o.turno_id] || 0) + 1;
+        continue;
+      }
+      if (!o.created_at) continue;
+      const ms = new Date(o.created_at).getTime();
+      for (const t of historial) {
+        const start = t.fecha_apertura ? new Date(t.fecha_apertura).getTime() : 0;
+        const end = t.fecha_cierre
+          ? new Date(t.fecha_cierre).getTime()
+          : start + 24 * 60 * 60 * 1000;
+        if (ms >= start && ms <= end) {
+          map[t.id] = (map[t.id] || 0) + 1;
+          break;
+        }
+      }
     }
     return map;
-  }, [rangeOrders]);
+  }, [rangeOrders, historial]);
 
   // Función para exportar CSV
   const handleExportCSV = () => {
@@ -708,8 +724,18 @@ export default function ReportsPage() {
         const difColor = t.estado !== 'cerrado'
           ? 'text-muted-foreground'
           : dif === 0 ? 'text-green-400' : dif > 0 ? 'text-yellow-400' : 'text-red-400';
-        const ordersCount = ordersByTurno[t.id] ?? 0;
-        const turnoOrders = rangeOrders.filter(o => o.turno_id === t.id);
+        const turnoStartMs = t.fecha_apertura ? new Date(t.fecha_apertura).getTime() : 0;
+        const turnoEndMs = t.fecha_cierre
+          ? new Date(t.fecha_cierre).getTime()
+          : turnoStartMs + 24 * 60 * 60 * 1000;
+        const turnoOrders = rangeOrders.filter(o => {
+          if (o.turno_id === t.id) return true;
+          if (o.turno_id && o.turno_id !== t.id) return false;
+          if (!o.created_at) return false;
+          const ms = new Date(o.created_at).getTime();
+          return ms >= turnoStartMs && ms <= turnoEndMs;
+        });
+        const ordersCount = turnoOrders.length;
         const cajeroNombre = cajeros.find(c => c.id === t.usuario_id)?.full_name || '—';
         const efectivo = turnoOrders.filter(o => o.metodo_pago === 'Efectivo').reduce((s, o) => s + (o.total || 0), 0);
         const tarjeta = turnoOrders.filter(o => o.metodo_pago === 'Tarjeta').reduce((s, o) => s + (o.total || 0), 0);

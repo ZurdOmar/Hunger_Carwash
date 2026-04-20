@@ -52,7 +52,9 @@ export default function DashboardPage() {
   const cardTotal = orders.filter(o => o.paymentMethod === 'Tarjeta').reduce((acc, curr) => acc + curr.total, 0);
   const memberTotal = orders.filter(o => o.paymentMethod === 'Membresía').reduce((acc, curr) => acc + curr.total, 0);
 
-  // Garantiza un turno abierto para la sucursal matriz al cargar el dashboard.
+  // Garantiza un turno abierto DEL DÍA para la sucursal matriz al cargar el dashboard.
+  // Si el turno abierto es de un día anterior, lo cierra con el efectivo del sistema
+  // y abre uno nuevo para hoy (evita que cortes crucen días).
   React.useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -65,9 +67,36 @@ export default function DashboardPage() {
       if (!matriz || cancelled) return;
 
       const activo = await getTurnoActivo(matriz.id);
-      if (activo) {
-        if (!cancelled) setTurnoActivo(activo);
-        return;
+      if (activo?.fecha_apertura) {
+        const apertura = new Date(activo.fecha_apertura);
+        const hoy = new Date();
+        const mismoDia =
+          apertura.getFullYear() === hoy.getFullYear() &&
+          apertura.getMonth() === hoy.getMonth() &&
+          apertura.getDate() === hoy.getDate();
+        if (mismoDia) {
+          if (!cancelled) setTurnoActivo(activo);
+          return;
+        }
+        try {
+          const { data: ords } = await supabase
+            .from('ordenes_servicio')
+            .select('total, metodo_pago, created_at')
+            .eq('turno_id', activo.id);
+          const inicio = new Date(activo.fecha_apertura).getTime();
+          const fin = inicio + 24 * 60 * 60 * 1000;
+          const efectivoSistema = (ords || [])
+            .filter((o: any) => {
+              if (o.metodo_pago !== 'Efectivo') return false;
+              if (!o.created_at) return true;
+              const t = new Date(o.created_at).getTime();
+              return t >= inicio && t < fin;
+            })
+            .reduce((s: number, o: any) => s + (o.total || 0), 0);
+          await cerrarTurno(activo.id, efectivoSistema, efectivoSistema);
+        } catch (e) {
+          console.error('No se pudo cerrar turno del día anterior:', e);
+        }
       }
 
       const nuevoId = await abrirTurno(matriz.id, user.id, 0);
