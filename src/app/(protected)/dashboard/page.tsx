@@ -26,6 +26,7 @@ import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
 import { abrirTurno, cerrarTurno, getTurnoActivo, type Turno } from "@/lib/turnosService";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 const stats = [
   { label: "Ingresos Hoy", value: "$4,250", change: "+12.5%", icon: DollarSign, trend: "up" },
@@ -35,8 +36,9 @@ const stats = [
 ];
 
 export default function DashboardPage() {
-  const { orders } = useConfig();
+  const { orders, members } = useConfig();
   const { user, profile } = useAuth();
+  const router = useRouter();
   const [showCorteModal, setShowCorteModal] = React.useState(false);
   const [turnoActivo, setTurnoActivo] = React.useState<Turno | null>(null);
   const [montoDeclarado, setMontoDeclarado] = React.useState("");
@@ -253,25 +255,17 @@ export default function DashboardPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-6xl font-black italic tracking-tighter leading-none tracking-glow">12</span>
-                        <span className="text-xs font-bold text-green-500 uppercase tracking-widest">+2 este mes</span>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-6xl font-black italic tracking-tighter leading-none tracking-glow">{members.length}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Vehículos registrados</span>
                     </div>
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest opacity-60">
-                            <span>Meta Mensual</span>
-                            <span>60%</span>
-                        </div>
-                        <div className="h-2 bg-muted/30 rounded-full overflow-hidden border border-white/5">
-                            <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: "60%" }}
-                                transition={{ duration: 1.5, ease: "circOut" }}
-                                className="h-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
-                            />
-                        </div>
-                    </div>
-                    <Button variant="ghost" className="w-full text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10">Ver todos los miembros <ChevronRight className="ml-1 w-3 h-3" /></Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10"
+                      onClick={() => router.push('/members')}
+                    >
+                      Ver todos los miembros <ChevronRight className="ml-1 w-3 h-3" />
+                    </Button>
                 </CardContent>
             </Card>
 
