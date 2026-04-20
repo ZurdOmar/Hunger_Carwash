@@ -88,7 +88,7 @@ export default function OperationsPage() {
           <div className="relative w-64 group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input 
-              placeholder="Placa o Marca..." 
+              placeholder="Filtrar por placa o marca (en vivo)..."
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               className="pl-9 h-11 bg-muted/20 border-white/5 font-bold uppercase tracking-widest text-xs"

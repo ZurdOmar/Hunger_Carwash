@@ -60,7 +60,7 @@ export default function MembersPage() {
         <div className="relative w-full md:w-80 group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input 
-            placeholder="Buscar socio por placa..." 
+            placeholder="Filtrar socio por placa (en vivo)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-11 h-12 bg-background/50 border-white/5 font-bold tracking-widest placeholder:text-muted-foreground/30 focus:border-primary/50 transition-all uppercase"

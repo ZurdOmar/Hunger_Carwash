@@ -1,24 +1,13 @@
 "use client";
 
-import { Bell, User, Search } from "lucide-react";
-import { Input } from "@/components/ui/Input";
+import { Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/AuthContext";
 
 export function TopBar() {
   const { profile } = useAuth();
   return (
-    <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-background/50 backdrop-blur-sm z-40">
-      <div className="flex-1 flex items-center gap-4 max-w-xl">
-        <div className="relative w-full group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-glow group-focus-within:text-primary transition-all" />
-          <Input 
-            placeholder="Buscar por placa o folio..." 
-            className="pl-10 h-10 w-full focus-visible:ring-primary/20"
-          />
-        </div>
-      </div>
-
+    <header className="h-16 flex items-center justify-end px-6 border-b border-white/5 bg-background/50 backdrop-blur-sm z-40">
       <div className="flex items-center gap-4">
         <div className="flex flex-col items-end mr-4">
           <span className="text-sm font-semibold">
