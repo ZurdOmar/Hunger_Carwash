@@ -135,7 +135,10 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Heading icon={UserCog} title="Gestión de Usuarios" />
+        <Heading level={2} className="flex items-center gap-3">
+          <UserCog className="w-7 h-7" />
+          Gestión de Usuarios
+        </Heading>
         <p className="text-muted-foreground mt-2">Administra roles y estado de acceso de tus usuarios</p>
       </div>
 
