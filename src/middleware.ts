@@ -2,7 +2,7 @@ import { createMiddlewareClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login']
+const PUBLIC_PATHS = ['/login', '/update-password']
 const ADMIN_ONLY_PATHS = ['/settings', '/reports']
 const SUPERVISOR_PATHS = ['/dashboard', '/operations', '/reports']
 
