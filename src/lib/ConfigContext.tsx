@@ -332,21 +332,27 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   // --- Fidelización ---
   const addOrUpdateMember = async (placa: string) => {
-    // For now, members are loaded from vehiculos in Supabase
-    // This function can be extended if needed to update cliente data
-    const existing = members.find(m => m.placa === placa);
-    if (!existing) {
-      // Create a new vehicle/client if needed
-      // This would happen in the POS when creating an order
-      const newMember: Member = {
-        id: Math.random().toString(36).substr(2, 9),
-        placa,
-        totalWashings: 1,
-        lastVisit: new Date().toISOString(),
-        joinedAt: new Date().toISOString(),
-      };
-      setMembers([...members, newMember]);
-    }
+    const now = new Date().toISOString();
+    setMembers(prev => {
+      const existing = prev.find(m => m.placa === placa);
+      if (existing) {
+        return prev.map(m =>
+          m.placa === placa
+            ? { ...m, totalWashings: m.totalWashings + 1, lastVisit: now }
+            : m
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          placa,
+          totalWashings: 1,
+          lastVisit: now,
+          joinedAt: now,
+        },
+      ];
+    });
   };
 
   const addPromoRule = async (rule: PromoRule) => {
