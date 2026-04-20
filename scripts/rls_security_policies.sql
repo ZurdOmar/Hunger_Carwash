@@ -1,29 +1,32 @@
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS) - HUNGER CARWASH SECURITY IMPLEMENTATION
+-- VERSIÓN CORREGIDA: Sin recursión infinita
 -- Ejecutar en Supabase SQL Editor
 -- ============================================================================
 
 -- TABLA: perfiles
 -- Usuarios pueden ver su propio perfil + admin ve todo
+-- ⚠️ CRÍTICO: NO usar EXISTS (SELECT FROM perfiles) en políticas de perfiles
+-- Usar JWT directamente en lugar de subconsulta
 ALTER TABLE perfiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "perfil_propio_lectura" ON perfiles;
 CREATE POLICY "perfil_propio_lectura" ON perfiles
   FOR SELECT USING (
     auth.uid() = id OR
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 DROP POLICY IF EXISTS "admin_edita_perfil" ON perfiles;
 CREATE POLICY "admin_edita_perfil" ON perfiles
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 DROP POLICY IF EXISTS "admin_crea_perfil" ON perfiles;
 CREATE POLICY "admin_crea_perfil" ON perfiles
   FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 -- TABLA: ordenes_servicio
@@ -34,23 +37,20 @@ ALTER TABLE ordenes_servicio ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "lectura_ordenes" ON ordenes_servicio;
 CREATE POLICY "lectura_ordenes" ON ordenes_servicio
   FOR SELECT USING (
-    auth.uid() IS NOT NULL AND (
-      -- Cualquier usuario autenticado puede leer
-      EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid())
-    )
+    auth.uid() IS NOT NULL
   );
 
 DROP POLICY IF EXISTS "crear_orden" ON ordenes_servicio;
 CREATE POLICY "crear_orden" ON ordenes_servicio
   FOR INSERT WITH CHECK (
     auth.uid() IS NOT NULL AND
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor', 'cajero'))
+    auth.jwt() ->> 'role' IN ('admin', 'supervisor', 'cajero')
   );
 
 DROP POLICY IF EXISTS "actualizar_orden" ON ordenes_servicio;
 CREATE POLICY "actualizar_orden" ON ordenes_servicio
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor'))
+    auth.jwt() ->> 'role' IN ('admin', 'supervisor')
   );
 
 -- TABLA: turnos
@@ -60,10 +60,7 @@ ALTER TABLE turnos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "lectura_turnos" ON turnos;
 CREATE POLICY "lectura_turnos" ON turnos
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM perfiles
-      WHERE id = auth.uid() AND role IN ('admin', 'supervisor')
-    ) OR
+    auth.jwt() ->> 'role' IN ('admin', 'supervisor') OR
     usuario_id = auth.uid()
   );
 
@@ -71,13 +68,13 @@ DROP POLICY IF EXISTS "crear_turno" ON turnos;
 CREATE POLICY "crear_turno" ON turnos
   FOR INSERT WITH CHECK (
     usuario_id = auth.uid() AND
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor', 'cajero'))
+    auth.jwt() ->> 'role' IN ('admin', 'supervisor', 'cajero')
   );
 
 DROP POLICY IF EXISTS "actualizar_turno" ON turnos;
 CREATE POLICY "actualizar_turno" ON turnos
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor'))
+    auth.jwt() ->> 'role' IN ('admin', 'supervisor')
   );
 
 -- TABLA: precios_base
@@ -93,13 +90,13 @@ CREATE POLICY "lectura_precios" ON precios_base
 DROP POLICY IF EXISTS "admin_edita_precios" ON precios_base;
 CREATE POLICY "admin_edita_precios" ON precios_base
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 DROP POLICY IF EXISTS "admin_crea_precios" ON precios_base;
 CREATE POLICY "admin_crea_precios" ON precios_base
   FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 -- TABLA: servicios
@@ -115,13 +112,13 @@ CREATE POLICY "lectura_servicios" ON servicios
 DROP POLICY IF EXISTS "admin_edita_servicios" ON servicios;
 CREATE POLICY "admin_edita_servicios" ON servicios
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 DROP POLICY IF EXISTS "admin_crea_servicios" ON servicios;
 CREATE POLICY "admin_crea_servicios" ON servicios
   FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 -- TABLA: vehiculos
@@ -169,7 +166,7 @@ CREATE POLICY "lectura_lavadores" ON lavadores
 DROP POLICY IF EXISTS "edita_lavadores" ON lavadores;
 CREATE POLICY "edita_lavadores" ON lavadores
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor'))
+    auth.jwt() ->> 'role' IN ('admin', 'supervisor')
   );
 
 -- TABLA: cajones
@@ -185,7 +182,7 @@ CREATE POLICY "lectura_cajones" ON cajones
 DROP POLICY IF EXISTS "edita_cajones" ON cajones;
 CREATE POLICY "edita_cajones" ON cajones
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 -- TABLA: sucursales
@@ -201,7 +198,7 @@ CREATE POLICY "lectura_sucursales" ON sucursales
 DROP POLICY IF EXISTS "edita_sucursales" ON sucursales;
 CREATE POLICY "edita_sucursales" ON sucursales
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 -- TABLA: reglas_promocion
@@ -217,7 +214,7 @@ CREATE POLICY "lectura_promociones" ON reglas_promocion
 DROP POLICY IF EXISTS "admin_edita_promociones" ON reglas_promocion;
 CREATE POLICY "admin_edita_promociones" ON reglas_promocion
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role = 'admin')
+    auth.jwt() ->> 'role' = 'admin'
   );
 
 -- TABLA: membresias
@@ -233,7 +230,7 @@ CREATE POLICY "lectura_membresias" ON membresias
 DROP POLICY IF EXISTS "edita_membresias" ON membresias;
 CREATE POLICY "edita_membresias" ON membresias
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM perfiles WHERE id = auth.uid() AND role IN ('admin', 'supervisor'))
+    auth.jwt() ->> 'role' IN ('admin', 'supervisor')
   );
 
 -- ============================================================================
