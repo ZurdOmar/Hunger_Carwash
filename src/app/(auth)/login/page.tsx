@@ -14,29 +14,77 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loginAttempts, setLoginAttempts] = useState(0)
+  const [isBlocked, setIsBlocked] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    // Rate limiting: 5 intentos cada 15 minutos
+    if (isBlocked) {
+      setError('Demasiados intentos fallidos. Intenta más tarde.')
+      return
+    }
+
     setLoading(true)
 
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (authError) {
-        setError(authError.message)
+      // Validación básica de input
+      if (!email || !password) {
+        setError('Ingresa tu correo y contraseña')
         setLoading(false)
         return
       }
 
-      // Login exitoso
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setError('Correo inválido')
+        setLoading(false)
+        return
+      }
+
+      // Longitud máxima
+      if (email.length > 254 || password.length > 128) {
+        setError('Entrada muy larga')
+        setLoading(false)
+        return
+      }
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password,
+      })
+
+      if (authError) {
+        // Incrementar contador de intentos fallidos
+        const newAttempts = loginAttempts + 1
+        setLoginAttempts(newAttempts)
+
+        // Bloquear después de 5 intentos fallidos
+        if (newAttempts >= 5) {
+          setIsBlocked(true)
+          setError('Cuenta bloqueada temporalmente. Intenta en 15 minutos.')
+
+          // Desbloquear después de 15 minutos
+          setTimeout(() => {
+            setIsBlocked(false)
+            setLoginAttempts(0)
+          }, 15 * 60 * 1000)
+        } else {
+          // Mensaje genérico para no revelar si existe el usuario
+          setError('Correo o contraseña incorrectos')
+        }
+        setLoading(false)
+        return
+      }
+
+      // Login exitoso - resetear intentos
+      setLoginAttempts(0)
+      setIsBlocked(false)
       router.push('/pos')
       router.refresh()
     } catch (err) {
-      setError('Error al iniciar sesión')
+      setError('Error al iniciar sesión. Intenta de nuevo.')
       setLoading(false)
     }
   }
@@ -96,22 +144,19 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || isBlocked}
               className="w-full h-10 font-bold uppercase tracking-widest"
             >
               {loading ? (
                 <Loader className="w-4 h-4 animate-spin" />
+              ) : isBlocked ? (
+                'Bloqueado temporalmente'
               ) : (
                 'Iniciar Sesión'
               )}
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-white/5">
-            <p className="text-xs text-muted-foreground text-center">
-              Demo: admin@ejemplo.com / password123
-            </p>
-          </div>
         </div>
       </div>
     </div>

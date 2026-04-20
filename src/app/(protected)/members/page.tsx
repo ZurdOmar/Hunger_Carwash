@@ -43,7 +43,7 @@ export default function MembersPage() {
     if(newPromo.name) {
         addPromoRule({
             ...newPromo,
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             isActive: true
         });
         setNewPromo({ visitThreshold: 5, benefit: 'free', name: '', discountPercent: 0 });
