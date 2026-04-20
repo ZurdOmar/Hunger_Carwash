@@ -225,3 +225,109 @@ export async function updateVehicleSizePriceAction(
 
   return { success: true };
 }
+
+/**
+ * Cambiar rol de usuario
+ * Solo admin puede cambiar roles
+ */
+export async function changeUserRoleAction(
+  userId: string,
+  newRole: 'admin' | 'supervisor' | 'cajero'
+) {
+  const supabase = await createServerSupabaseClient();
+
+  // Validar autenticación
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('No autenticado');
+  }
+
+  // Validar rol - SOLO ADMIN
+  const { data: profile } = await supabase
+    .from('perfiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profile || profile.role !== 'admin') {
+    throw new Error('Solo administradores pueden cambiar roles');
+  }
+
+  // Validar userId es UUID válido
+  if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) {
+    throw new Error('ID de usuario inválido');
+  }
+
+  // Validar nuevo rol
+  if (!['admin', 'supervisor', 'cajero'].includes(newRole)) {
+    throw new Error('Rol inválido');
+  }
+
+  // Validar que no intente cambiar su propio rol
+  if (userId === session.user.id) {
+    throw new Error('No puedes cambiar tu propio rol');
+  }
+
+  // Ejecutar actualización
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ role: newRole })
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error('Error al cambiar rol de usuario');
+  }
+
+  return { success: true };
+}
+
+/**
+ * Activar/Desactivar usuario
+ * Solo admin puede desactivar usuarios
+ */
+export async function toggleUserActiveAction(
+  userId: string,
+  activo: boolean
+) {
+  const supabase = await createServerSupabaseClient();
+
+  // Validar autenticación
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('No autenticado');
+  }
+
+  // Validar rol - SOLO ADMIN
+  const { data: profile } = await supabase
+    .from('perfiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profile || profile.role !== 'admin') {
+    throw new Error('Solo administradores pueden desactivar usuarios');
+  }
+
+  // Validar userId es UUID válido
+  if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) {
+    throw new Error('ID de usuario inválido');
+  }
+
+  // Validar que no intente desactivarse a sí mismo
+  if (userId === session.user.id && !activo) {
+    throw new Error('No puedes desactivar tu propia cuenta');
+  }
+
+  // Ejecutar actualización
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ activo })
+    .eq('id', userId);
+
+  if (error) {
+    throw new Error('Error al actualizar estado del usuario');
+  }
+
+  return { success: true };
+}
+}

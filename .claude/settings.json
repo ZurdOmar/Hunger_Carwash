@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm audit *)",
       "Bash(npm run *)",
-      "Bash(curl -s http://localhost:3000)"
+      "Bash(curl -s http://localhost:3000)",
+      "mcp__notebooklm__notebook_query",
+      "Bash(git pull *)",
+      "Bash(npm install *)"
     ]
   }
 }

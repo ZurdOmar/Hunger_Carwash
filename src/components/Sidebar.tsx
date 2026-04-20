@@ -13,7 +13,8 @@ import {
   BarChart3,
   Users,
   Package,
-  LogOut
+  LogOut,
+  UserCog
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -27,8 +28,12 @@ const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Kanban, label: "Seguimiento", href: "/operations" },
   { icon: BarChart3, label: "Reportes", href: "/reports" },
-  { icon: Users, label: "Membresías", href: "/members" },
-  { icon: Package, label: "Recursos", href: "/resources" },
+  { icon: Package, label: "Membresías", href: "/members" },
+  { icon: Car, label: "Recursos", href: "/resources" },
+];
+
+const adminNavItems = [
+  { icon: UserCog, label: "Usuarios", href: "/users" },
   { icon: Settings, label: "Configuración", href: "/settings" },
 ];
 
@@ -51,8 +56,8 @@ export function Sidebar() {
                 whileHover={{ x: 4 }}
                 className={cn(
                   "flex items-center justify-between p-3 rounded-lg transition-all group",
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                     : "text-muted-foreground hover:bg-white/5 hover:text-primary"
                 )}
               >
@@ -65,6 +70,34 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {profile?.role === 'admin' && (
+          <>
+            <div className="h-px bg-white/10 my-2" />
+            {adminNavItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link key={item.href} href={item.href}>
+                  <motion.div
+                    whileHover={{ x: 4 }}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-lg transition-all group",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-primary"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon className={cn("w-5 h-5", isActive ? "" : "group-hover:scale-110 transition-transform")} />
+                      <span className="font-medium text-sm">{item.label}</span>
+                    </div>
+                    {isActive && <ChevronRight className="w-4 h-4" />}
+                  </motion.div>
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       <div className="mt-auto space-y-4 pt-4 border-t border-white/5">

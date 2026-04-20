@@ -25,17 +25,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/pos', request.url))
   }
 
-  // Si está loggeado, validar roles
+  // Si está loggeado, validar roles y estado
   if (session) {
     try {
       const { data: profile, error } = await supabase
         .from('perfiles')
-        .select('role')
+        .select('role, activo')
         .eq('id', session.user.id)
         .single()
 
       if (error || !profile) {
         console.error('[MIDDLEWARE] Profile not found:', error);
+        return NextResponse.redirect(new URL('/login', request.url))
+      }
+
+      // Validar que el usuario esté activo
+      if (!profile.activo) {
+        console.error('[MIDDLEWARE] Inactive user attempting access:', session.user.id);
         return NextResponse.redirect(new URL('/login', request.url))
       }
 
