@@ -6,9 +6,9 @@ import { Heading } from "@/components/ui/Heading";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { 
-  Plus, 
-  Trash2, 
+import {
+  Plus,
+  Trash2,
   Car,
   TrendingUp,
   DollarSign,
@@ -18,10 +18,14 @@ import {
   Percent,
   CheckCircle2,
   Package,
-  Sparkles
+  Sparkles,
+  Download,
+  DatabaseBackup,
+  AlertCircle
 } from "lucide-react";
 import { useConfig } from "@/lib/ConfigContext";
 import { cn } from "@/lib/utils";
+import { downloadDatabaseBackup } from "@/lib/backupService";
 
 export default function SettingsPage() {
   const { 
@@ -36,6 +40,9 @@ export default function SettingsPage() {
   const [newServicePrice, setNewServicePrice] = React.useState("");
   const [percentIncrease, setPercentIncrease] = React.useState("");
   const [showSuccess, setShowSuccess] = React.useState(false);
+  const [isBackingUp, setIsBackingUp] = React.useState(false);
+  const [backupProgress, setBackupProgress] = React.useState({ percentage: 0, currentTable: "" });
+  const [backupError, setBackupError] = React.useState("");
 
   const handleAddType = () => {
     if(newTypeName && newTypePrice) { 
@@ -68,6 +75,26 @@ export default function SettingsPage() {
     setTimeout(() => setShowSuccess(false), 2000);
   };
 
+  const handleBackupDatabase = async () => {
+    setIsBackingUp(true);
+    setBackupError("");
+    try {
+      await downloadDatabaseBackup((progress) => {
+        setBackupProgress({
+          percentage: progress.percentage,
+          currentTable: progress.currentTable
+        });
+      });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : "Error desconocido al respaldar");
+    } finally {
+      setIsBackingUp(false);
+      setBackupProgress({ percentage: 0, currentTable: "" });
+    }
+  };
+
   return (
     <div className="space-y-8 pb-32 px-1 pr-2 relative overflow-y-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -76,6 +103,67 @@ export default function SettingsPage() {
           <p className="text-muted-foreground text-sm font-medium italic">Configuración Estratégica y Catálogos Hunger Velocity v4.1</p>
         </div>
       </div>
+
+      {/* RESPALDO DE BASE DE DATOS */}
+      <Card className="glass border-blue-500/20 shadow-2xl overflow-hidden group bg-gradient-to-r from-blue-500/5 to-transparent">
+        <CardHeader className="bg-blue-500/10 border-b border-blue-500/10 py-8 px-8">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-400">
+              <DatabaseBackup className="w-6 h-6" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-black italic uppercase tracking-tighter">Respaldo de Base de Datos</CardTitle>
+              <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-blue-400/70">Descargar copia completa en formato ZIP para migraciones futuras</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-8">
+          {backupError && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-400 font-medium">{backupError}</p>
+            </div>
+          )}
+
+          {isBackingUp ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold text-muted-foreground uppercase">
+                  {backupProgress.currentTable || "Preparando respaldo..."}
+                </p>
+                <p className="text-sm font-black text-blue-400">{backupProgress.percentage}%</p>
+              </div>
+              <div className="w-full h-3 rounded-full bg-white/5 border border-white/10 overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-blue-500 to-blue-400 shadow-lg shadow-blue-500/50"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${backupProgress.percentage}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-white/5 p-4 rounded-xl border border-blue-500/20">
+                <p className="text-[10px] font-bold text-blue-400 italic uppercase leading-tight">
+                  ⚠️ Se crearán archivos CSV de todas las tablas (órdenes, turnos, clientes, etc.) en un archivo ZIP comprimido.
+                </p>
+              </div>
+              <Button
+                onClick={handleBackupDatabase}
+                disabled={isBackingUp}
+                className="w-full h-12 font-black uppercase bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+              >
+                <Download className="w-5 h-5" />
+                DESCARGAR RESPALDO (ZIP)
+              </Button>
+              <p className="text-[11px] text-muted-foreground text-center italic">
+                El respaldo incluye: órdenes, turnos, clientes, vehículos, lavadores, servicios, precios y más
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* PRECIOS POR TAMAÑO DE AUTO */}
