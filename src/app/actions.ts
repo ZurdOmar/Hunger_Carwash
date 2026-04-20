@@ -330,4 +330,3 @@ export async function toggleUserActiveAction(
 
   return { success: true };
 }
-}
