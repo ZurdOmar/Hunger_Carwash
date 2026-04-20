@@ -441,7 +441,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      todos_usuarios: {
+        Row: {
+          id: string
+          full_name: string | null
+          role: 'admin' | 'supervisor' | 'cajero'
+          activo: boolean
+          created_at: string
+          email: string
+          last_sign_in_at: string | null
+          auth_created_at: string
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
