@@ -36,7 +36,7 @@ type Step = "vehicle" | "size" | "services" | "checkout";
 
 export default function POSPage() {
   const router = useRouter();
-  const { vehicleSizes, basePrices, services: dynamicServices, addOrder, getMemberInfo, bays, washers, promoRules } = useConfig();
+  const { vehicleSizes, basePrices, services: dynamicServices, addOrder, getMemberInfo, bays, washers, promoRules, members } = useConfig();
   const { user } = useAuth();
   const [step, setStep] = React.useState<Step>("vehicle");
   const [vehicle, setVehicle] = React.useState({ placa: "", brand: "", model: "" });
@@ -146,11 +146,16 @@ export default function POSPage() {
     if (step === "vehicle" && vehicle.placa) {
         setIsLoading(true);
         try {
-            const { data: existingVehicle, error: vehLookupErr } = await supabase
+            const placa = vehicle.placa.trim().toUpperCase();
+            const lookup = supabase
                 .from("vehiculos")
-                .select("*")
-                .eq("placa", vehicle.placa)
+                .select("id, placa, marca, modelo, tamano")
+                .eq("placa", placa)
                 .maybeSingle();
+            const timeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Tiempo de espera agotado al buscar el vehículo")), 10000)
+            );
+            const { data: existingVehicle, error: vehLookupErr } = (await Promise.race([lookup, timeout])) as any;
 
             if (vehLookupErr) throw vehLookupErr;
 
@@ -162,20 +167,14 @@ export default function POSPage() {
                     brand: existingVehicle.marca || vehicle.brand,
                     model: existingVehicle.modelo || vehicle.model
                 });
-                setSelectedSize(existingVehicle.tamano);
-
-                const { count, error: countErr } = await supabase
-                    .from("ordenes_servicio")
-                    .select("*", { count: "exact", head: true })
-                    .eq("vehiculo_id", existingVehicle.id);
-                if (countErr) throw countErr;
-
-                previousWashings = count || 0;
+                if (existingVehicle.tamano) setSelectedSize(existingVehicle.tamano);
+                const cached = members.find(m => m.placa === existingVehicle.placa);
+                previousWashings = cached?.totalWashings || 0;
             } else {
                 setCurrentVehicleId(null);
             }
 
-            const info = getMemberInfo(vehicle.placa);
+            const info = getMemberInfo(placa);
             const mergedInfo = { ...info, totalWashings: previousWashings };
             setMemberData(mergedInfo as any);
 
