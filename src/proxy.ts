@@ -6,7 +6,7 @@ const PUBLIC_PATHS = ['/login', '/update-password']
 const ADMIN_ONLY_PATHS = ['/settings', '/reports']
 const SUPERVISOR_PATHS = ['/dashboard', '/operations', '/reports']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request })
   const supabase = await createMiddlewareClient(request, response)
 
