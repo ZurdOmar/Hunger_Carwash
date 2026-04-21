@@ -44,21 +44,21 @@ export async function proxy(request: NextRequest) {
       }
 
       const role = profile?.role as string | undefined
-      
-      // Si llegamos aquí y no hay perfil en una ruta protegida, 
-      // las siguientes validaciones de rol fallarán, lo cual es seguro.
 
-      // Rutas solo para admin
-      if (ADMIN_ONLY_PATHS.some(path => pathname.startsWith(path))) {
-        if (role !== 'admin') {
-          return NextResponse.redirect(new URL('/pos', request.url))
+      // Solo validamos rutas si tenemos rol; si perfil falló, dejamos pasar (el cliente lo resolverá).
+      if (role) {
+        // Rutas solo para admin
+        if (ADMIN_ONLY_PATHS.some(path => pathname.startsWith(path))) {
+          if (role !== 'admin') {
+            return NextResponse.redirect(new URL('/pos', request.url))
+          }
         }
-      }
 
-      // Rutas para supervisor+ (admin y supervisor)
-      if (SUPERVISOR_PATHS.some(path => pathname.startsWith(path))) {
-        if (!['admin', 'supervisor'].includes(role)) {
-          return NextResponse.redirect(new URL('/pos', request.url))
+        // Rutas para supervisor+ (admin y supervisor)
+        if (SUPERVISOR_PATHS.some(path => pathname.startsWith(path))) {
+          if (!['admin', 'supervisor'].includes(role)) {
+            return NextResponse.redirect(new URL('/pos', request.url))
+          }
         }
       }
     } catch (error) {
