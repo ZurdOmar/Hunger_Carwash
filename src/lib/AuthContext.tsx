@@ -83,10 +83,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      // Limpiamos los estados de forma inmediata para una respuesta instantánea en la UI
+      setUser(null)
+      setProfile(null)
+      
       await supabase.auth.signOut()
-      router.push('/login')
+      
+      // Usamos window.location para forzar un refresco total y limpiar el caché de Next.js
+      window.location.href = '/login'
     } catch (error) {
       console.error('Error signing out:', error)
+      // En caso de error, intentamos forzar la salida igualmente
+      window.location.href = '/login'
     }
   }
 
