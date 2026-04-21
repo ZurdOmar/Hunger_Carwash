@@ -63,23 +63,41 @@ export default function LoginPage() {
         }
       }
 
-      // Listen for future auth state changes
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (event === 'SIGNED_IN' && session?.user) {
-            handleInvitedUser(session)
+      // Explicitly process the tokens from the URL to avoid race conditions
+      const params = new URLSearchParams(hash.substring(1))
+      const accessToken = params.get('access_token')
+      const refreshToken = params.get('refresh_token')
+
+      if (accessToken && refreshToken) {
+        supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        }).then(({ data, error }) => {
+          if (error) {
+            console.error('Error setting session from url:', error.message)
+            setError('El enlace de invitación no es válido o ha expirado.')
+            setMode('login')
+          } else if (data.session) {
+            handleInvitedUser(data.session)
+          } else {
+            setError('No se pudo establecer la sesión.')
+            setMode('login')
           }
-        }
-      )
-
-      // Also check if Supabase already processed the token (race condition fix)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          handleInvitedUser(session)
-        }
-      })
-
-      return () => subscription?.unsubscribe()
+        }).catch(() => {
+          setError('Error inesperado al procesar la invitación.')
+          setMode('login')
+        })
+      } else {
+        // Fallback check just in case Supabase handled it already
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) {
+            handleInvitedUser(session)
+          } else {
+            setMode('login')
+          }
+        })
+      }
+      return
     } else {
       // No hash fragment — show normal login
       setMode('login')
