@@ -20,5 +20,10 @@ const noOpLock = async <T,>(
 export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     lock: noOpLock as any,
+    // The invite flow manually handles tokens in the URL hash in
+    // src/app/(auth)/login/page.tsx. Auto-detection would race with
+    // that logic, consume the tokens, and clear the hash before the
+    // login useEffect reads it — leaving the page stuck on a spinner.
+    detectSessionInUrl: false,
   },
 })

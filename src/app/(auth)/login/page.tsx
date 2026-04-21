@@ -10,6 +10,21 @@ import { AlertCircle, CheckCircle2, Loader, Eye, EyeOff } from 'lucide-react'
 
 type PageMode = 'login' | 'set-password' | 'loading'
 
+type PendingInvite = { accessToken: string; refreshToken: string }
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split('.')
+    if (!payload) return null
+    // base64url → base64
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = b64 + '==='.slice((b64.length + 3) % 4)
+    return JSON.parse(atob(padded))
+  } catch {
+    return null
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [mode, setMode] = useState<PageMode>('loading')
@@ -22,93 +37,69 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [loginAttempts, setLoginAttempts] = useState(0)
   const [isBlocked, setIsBlocked] = useState(false)
-
-  // Helper to handle an authenticated invited user
-  const handleInvitedUser = (session: { user: { email?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } }, isInviteLinkParam?: boolean) => {
-    const userMeta = session.user.user_metadata
-    // Si viene de un link de invitación explícito O el proveedor es email y no tiene password_set
-    const isInvited = isInviteLinkParam || (session.user.app_metadata?.provider === 'email' && !userMeta?.password_set)
-
-    if (isInvited) {
-      setEmail(session.user.email || '')
-      setMode('set-password')
-    } else {
-      router.push('/pos')
-      router.refresh()
-    }
-  }
+  const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null)
 
   useEffect(() => {
-    // Check if the URL has a hash fragment
     const hash = window.location.hash
-    
+    const searchParams = new URLSearchParams(window.location.search)
+
+    // Error explícito en el hash (link inválido/expirado entregado por Supabase)
     if (hash && hash.includes('error=')) {
-      // Parse error from hash e.g. #error=access_denied&error_description=Email+link+is+invalid+or+has+expired
       const params = new URLSearchParams(hash.substring(1))
       const errorDesc = params.get('error_description')
-      
-      if (errorDesc) {
-        // Replace pluses with spaces
-        const msg = errorDesc.replace(/\+/g, ' ')
-        setError(msg === 'Email link is invalid or has expired' 
-          ? 'El enlace de invitación es inválido o ya ha expirado. Solicita uno nuevo.' 
-          : msg)
-      } else {
-        setError('Ocurrió un error con el enlace.')
-      }
+      const msg = errorDesc ? errorDesc.replace(/\+/g, ' ') : null
+      setError(msg === 'Email link is invalid or has expired'
+        ? 'El enlace de invitación es inválido o ya ha expirado. Solicita uno nuevo.'
+        : (msg || 'Ocurrió un error con el enlace.'))
       setMode('login')
       return
     }
 
+    // Invitación con tokens en el hash — pintamos el formulario INMEDIATAMENTE
+    // sin esperar a setSession (que a veces se cuelga y dejaba la página en blanco).
+    // setSession se ejecuta al hacer submit para que el usuario tenga feedback visual.
     if (hash && hash.includes('access_token')) {
-      const searchParams = new URLSearchParams(window.location.search)
-      const isInviteLink = hash.includes('type=invite') || searchParams.get('type') === 'invite'
-
-      // Explicitly process the tokens from the URL to avoid race conditions
       const params = new URLSearchParams(hash.substring(1))
       const accessToken = params.get('access_token')
-      const refreshToken = params.get('refresh_token')
+      const refreshToken = params.get('refresh_token') || ''
 
-      if (accessToken && refreshToken) {
-        supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        }).then(({ data, error }) => {
-          if (error) {
-            console.error('Error setting session from url:', error.message)
-            setError('El enlace de invitación no es válido o ha expirado.')
-            setMode('login')
-          } else if (data.session) {
-            handleInvitedUser(data.session, isInviteLink)
-          } else {
-            setError('No se pudo establecer la sesión.')
-            setMode('login')
-          }
-        }).catch(() => {
-          setError('Error inesperado al procesar la invitación.')
-          setMode('login')
-        })
-      } else {
-        // Fallback check just in case Supabase handled it already
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user) {
-            handleInvitedUser(session, isInviteLink)
-          } else {
-            setMode('login')
-          }
-        })
+      if (accessToken) {
+        const payload = decodeJwtPayload(accessToken)
+        const emailFromToken = (payload?.email as string) || ''
+        setEmail(emailFromToken)
+        setPendingInvite({ accessToken, refreshToken })
+        setMode('set-password')
+        // Limpiamos el hash para que no quede expuesto en la barra de direcciones
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        } catch { /* noop */ }
+        return
       }
+
+      setError('El enlace no contiene un token válido.')
+      setMode('login')
       return
-    } else {
-      // No hay fragmento hash — verificar si ya tenemos una sesión activa (frecuente tras rebotes)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          handleInvitedUser(session)
-        } else {
-          setMode('login')
-        }
-      })
     }
+
+    // Sin hash — rebote común: el usuario ya tiene cookie de sesión pero no ha puesto contraseña.
+    // Consultamos sesión; si existe y no tiene password_set, mostramos set-password.
+    const isInviteSearch = searchParams.get('type') === 'invite'
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const userMeta = session.user.user_metadata as Record<string, unknown> | undefined
+        const appMeta = session.user.app_metadata as Record<string, unknown> | undefined
+        const needsPassword = isInviteSearch || (appMeta?.provider === 'email' && !userMeta?.password_set)
+        if (needsPassword) {
+          setEmail(session.user.email || '')
+          setMode('set-password')
+        } else {
+          router.push('/pos')
+          router.refresh()
+        }
+      } else {
+        setMode('login')
+      }
+    }).catch(() => setMode('login'))
   }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -198,6 +189,21 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      // Si llegamos desde el link de invitación tenemos los tokens guardados.
+      // Hacemos setSession justo aquí (con feedback visual del spinner) en vez de
+      // al montar, para que un cuelgue no deje la página en blanco.
+      if (pendingInvite) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: pendingInvite.accessToken,
+          refresh_token: pendingInvite.refreshToken,
+        })
+        if (sessionError) {
+          setError('El enlace ya fue usado o ha expirado. Solicita uno nuevo.')
+          setLoading(false)
+          return
+        }
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
         password,
         data: { password_set: true },
@@ -209,6 +215,7 @@ export default function LoginPage() {
         return
       }
 
+      setPendingInvite(null)
       setSuccess('¡Contraseña creada exitosamente! Redirigiendo...')
 
       setTimeout(() => {
