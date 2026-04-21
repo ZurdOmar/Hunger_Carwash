@@ -23,6 +23,21 @@ export default function LoginPage() {
   const [loginAttempts, setLoginAttempts] = useState(0)
   const [isBlocked, setIsBlocked] = useState(false)
 
+  // Helper to handle an authenticated invited user
+  const handleInvitedUser = (session: { user: { email?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } }, isInviteLinkParam?: boolean) => {
+    const userMeta = session.user.user_metadata
+    // Si viene de un link de invitación explícito O el proveedor es email y no tiene password_set
+    const isInvited = isInviteLinkParam || (session.user.app_metadata?.provider === 'email' && !userMeta?.password_set)
+
+    if (isInvited) {
+      setEmail(session.user.email || '')
+      setMode('set-password')
+    } else {
+      router.push('/pos')
+      router.refresh()
+    }
+  }
+
   useEffect(() => {
     // Check if the URL has a hash fragment
     const hash = window.location.hash
@@ -49,21 +64,6 @@ export default function LoginPage() {
       const searchParams = new URLSearchParams(window.location.search)
       const isInviteLink = hash.includes('type=invite') || searchParams.get('type') === 'invite'
 
-      // Helper to handle an authenticated invited user
-      const handleInvitedUser = (session: { user: { email?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } }) => {
-        const userMeta = session.user.user_metadata
-        // Si viene de un link de invitación explícito O el proveedor es email y no tiene password_set
-        const isInvited = isInviteLink || (session.user.app_metadata?.provider === 'email' && !userMeta?.password_set)
-
-        if (isInvited) {
-          setEmail(session.user.email || '')
-          setMode('set-password')
-        } else {
-          router.push('/pos')
-          router.refresh()
-        }
-      }
-
       // Explicitly process the tokens from the URL to avoid race conditions
       const params = new URLSearchParams(hash.substring(1))
       const accessToken = params.get('access_token')
@@ -79,7 +79,7 @@ export default function LoginPage() {
             setError('El enlace de invitación no es válido o ha expirado.')
             setMode('login')
           } else if (data.session) {
-            handleInvitedUser(data.session)
+            handleInvitedUser(data.session, isInviteLink)
           } else {
             setError('No se pudo establecer la sesión.')
             setMode('login')
@@ -92,7 +92,7 @@ export default function LoginPage() {
         // Fallback check just in case Supabase handled it already
         supabase.auth.getSession().then(({ data: { session } }) => {
           if (session?.user) {
-            handleInvitedUser(session)
+            handleInvitedUser(session, isInviteLink)
           } else {
             setMode('login')
           }
