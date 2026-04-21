@@ -65,27 +65,19 @@ export default function LoginPage() {
       return
     }
 
-    // Invitación con tokens en el hash — pintamos el formulario INMEDIATAMENTE
-    // y lanzamos setSession en background para que esté lista al hacer submit.
+    // Invitación con tokens en el hash — pintamos el formulario INMEDIATAMENTE.
+    // NO usamos supabase.auth.setSession() porque se cuelga con el cliente SSR.
+    // En su lugar, el token se usa directamente vía fetch en el submit.
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1))
       const accessToken = params.get('access_token')
-      const refreshToken = params.get('refresh_token') || ''
 
       if (accessToken) {
         const payload = decodeJwtPayload(accessToken)
         const emailFromToken = (payload?.email as string) || ''
         setEmail(emailFromToken)
-        setPendingInvite({ accessToken, refreshToken })
+        setPendingInvite({ accessToken, refreshToken: '' })
         setMode('set-password')
-
-        // Establecer la sesión en segundo plano (fire-and-forget).
-        // Para cuando el usuario termine de llenar el formulario,
-        // la sesión ya estará lista.
-        supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        }).catch(() => { /* se maneja en el submit */ })
 
         // Limpiamos el hash para que no quede expuesto en la barra de direcciones
         try {
@@ -207,41 +199,66 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Verificar que tengamos sesión (fue establecida en background al montar).
-      // Si no hay sesión y tenemos tokens pendientes, intentar una vez más.
-      let { data: { session } } = await supabase.auth.getSession()
-
-      if (!session && pendingInvite) {
-        // La sesión de background aún no terminó. Intentar directamente.
-        const result = await supabase.auth.setSession({
-          access_token: pendingInvite.accessToken,
-          refresh_token: pendingInvite.refreshToken,
-        })
-        session = result.data.session
-      }
-
-      if (!session) {
-        setError('No se pudo establecer la sesión. Intenta abrir el enlace de invitación de nuevo.')
+      if (!pendingInvite) {
+        setError('No hay un enlace de invitación activo.')
         return
       }
 
-      const { error: updateError } = await supabase.auth.updateUser({
-        password,
-        data: { password_set: true },
+      // ======= BYPASS DEL SDK: usar fetch directo a la API REST =======
+      // supabase.auth.setSession() se cuelga con createBrowserClient + noOpLock,
+      // así que llamamos directamente al endpoint PUT /auth/v1/user
+      // con el access_token como bearer.
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+      const updateRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${pendingInvite.accessToken}`,
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({
+          password,
+          data: { password_set: true },
+        }),
       })
 
-      if (updateError) {
-        setError(updateError.message)
+      if (!updateRes.ok) {
+        const errData = await updateRes.json().catch(() => ({}))
+        setError(errData.message || errData.msg || 'Error al establecer la contraseña.')
+        return
+      }
+
+      const userData = await updateRes.json()
+
+      // Ahora iniciar sesión normalmente con email/password (esto SÍ funciona con el SDK)
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password,
+      })
+
+      if (signInError) {
+        // La contraseña se guardó, pero el sign-in falló.
+        // Mandamos al usuario al login normal.
+        setPendingInvite(null)
+        setSuccess('¡Contraseña creada! Inicia sesión con tus credenciales.')
+        setTimeout(() => {
+          setMode('login')
+          setSuccess(null)
+          setPassword('')
+          setConfirmPassword('')
+        }, 2000)
         return
       }
 
       // Actualizar el nombre real en la tabla de perfiles
-      if (fullName.trim()) {
+      if (fullName.trim() && userData.id) {
         try {
           await supabase
             .from('perfiles')
             .update({ full_name: fullName.trim() })
-            .eq('id', session.user.id)
+            .eq('id', userData.id)
         } catch {
           console.error('Error updating profile name')
         }
