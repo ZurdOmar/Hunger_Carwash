@@ -215,6 +215,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           bayNumber: o.cajon_id || undefined,
           createdAt: o.created_at || new Date().toISOString(),
           paymentMethod: o.metodo_pago || undefined,
+          turnoId: o.turno_id || undefined,
         })));
       }
 

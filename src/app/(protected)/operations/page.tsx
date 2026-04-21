@@ -160,31 +160,47 @@ export default function OperationsPage() {
                             </div>
                           </div>
 
-                          <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                                <button 
-                                    onClick={() => setAssigningOrder(order)}
-                                    className="h-8 flex items-center gap-2 text-[9px] font-black text-muted-foreground bg-white/5 hover:bg-white/10 transition-all px-3 rounded-full border border-white/5"
-                                >
-                                    <Navigation className="w-2.5 h-2.5 text-primary" />
-                                    <span className="tracking-widest capitalize">B{order.bayNumber || "?"}</span>
-                                </button>
-                                <button 
-                                    onClick={() => setAssigningOrder(order)}
-                                    className="h-8 flex items-center gap-2 text-[9px] font-black text-muted-foreground bg-white/5 hover:bg-white/10 transition-all px-3 rounded-full border border-white/5"
-                                >
-                                    <User className="w-2.5 h-2.5 text-primary" />
-                                    <span className="tracking-widest capitalize truncate max-w-[70px]">
-                                        {washers.find(w => w.id === order.washerId)?.fullName || "ASIGNAR"}
-                                    </span>
-                                </button>
+                          <div className="pt-3 border-t border-white/5 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+                                    <button 
+                                        onClick={() => setAssigningOrder(order)}
+                                        className="h-8 flex shrink-0 items-center gap-2 text-[9px] font-black text-muted-foreground bg-white/5 hover:bg-white/10 transition-all px-3 rounded-full border border-white/5"
+                                    >
+                                        <Navigation className="w-2.5 h-2.5 text-primary" />
+                                        <span className="tracking-widest capitalize">B{order.bayNumber || "?"}</span>
+                                    </button>
+                                    <button 
+                                        onClick={() => setAssigningOrder(order)}
+                                        className="h-8 flex shrink-0 items-center gap-2 text-[9px] font-black text-muted-foreground bg-white/5 hover:bg-white/10 transition-all px-3 rounded-full border border-white/5"
+                                    >
+                                        <User className="w-2.5 h-2.5 text-primary" />
+                                        <span className="tracking-widest capitalize truncate max-w-[80px]">
+                                            {washers.find(w => w.id === order.washerId)?.fullName || "ASIGNAR LAVADOR"}
+                                        </span>
+                                    </button>
+                                </div>
+                                
+                                {order.status !== 'Listo' && (
+                                    <button 
+                                        onClick={() => handleNextStatus(order)}
+                                        className="h-8 w-8 shrink-0 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-black transition-all flex items-center justify-center group/btn shadow-xl active:scale-90 ml-2"
+                                        title="Siguiente estatus"
+                                    >
+                                        <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" />
+                                    </button>
+                                )}
                             </div>
-                            <button 
-                                onClick={() => handleNextStatus(order)}
-                                className="h-10 w-10 rounded-2xl bg-primary/10 hover:bg-primary text-primary hover:text-black transition-all flex items-center justify-center group/btn shadow-xl active:scale-90"
-                            >
-                                <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-0.5 transition-transform" />
-                            </button>
+                            
+                            {order.status === 'Listo' && (
+                                <Button 
+                                    onClick={() => handleNextStatus(order)}
+                                    className="w-full h-10 mt-1 bg-green-500 hover:bg-green-600 text-black font-black uppercase italic tracking-widest text-xs gap-2"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Vehículo Entregado
+                                </Button>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -289,7 +305,10 @@ export default function OperationsPage() {
                                 {washers.filter(w => w.isActive || w.id === assigningOrder.washerId).map(washer => (
                                     <button 
                                         key={washer.id}
-                                        onClick={() => updateOrderAssignment(assigningOrder.id, washer.id, assigningOrder.bayNumber)}
+                                        onClick={() => {
+                                            updateOrderAssignment(assigningOrder.id, washer.id, assigningOrder.bayNumber);
+                                            setAssigningOrder(prev => prev ? { ...prev, washerId: washer.id } : null);
+                                        }}
                                         className={cn(
                                             "h-12 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all px-2 truncate",
                                             assigningOrder.washerId === washer.id ? "bg-primary text-black border-primary shadow-lg shadow-primary/30" : "glass border-white/5 hover:border-primary/20"
@@ -310,7 +329,10 @@ export default function OperationsPage() {
                                 {bays.map(bay => (
                                     <button 
                                         key={bay.id}
-                                        onClick={() => updateOrderAssignment(assigningOrder.id, assigningOrder.washerId, bay.id)}
+                                        onClick={() => {
+                                            updateOrderAssignment(assigningOrder.id, assigningOrder.washerId, bay.id);
+                                            setAssigningOrder(prev => prev ? { ...prev, bayNumber: bay.id } : null);
+                                        }}
                                         className={cn(
                                             "h-12 rounded-2xl border text-xs font-black transition-all",
                                             assigningOrder.bayNumber === bay.id ? "bg-primary text-black border-primary shadow-lg shadow-primary/30" : "glass border-white/5 hover:border-primary/20"

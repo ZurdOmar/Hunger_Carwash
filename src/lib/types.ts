@@ -40,6 +40,7 @@ export interface Order {
   createdAt: string;
   paymentMethod?: 'Efectivo' | 'Tarjeta' | 'Membresía';
   isFree?: boolean; // Indica si se aplicó promoción de lavado gratis
+  turnoId?: string;
 }
 
 export const PREMIUM_ADDON_PRICE = 100;

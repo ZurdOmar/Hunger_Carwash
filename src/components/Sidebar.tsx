@@ -53,7 +53,7 @@ export function Sidebar() {
         <Logo size="full" className="w-full" />
       </div>
       
-      <nav className="flex-1 space-y-1 px-3 relative z-10">
+      <nav className="flex-1 space-y-1 px-3 relative z-10 overflow-y-auto custom-scrollbar pb-4">
         {navItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (

@@ -46,13 +46,18 @@ export default function DashboardPage() {
   const [corteError, setCorteError] = React.useState<string | null>(null);
   const [turnoCerrado, setTurnoCerrado] = React.useState<Turno | null>(null);
 
-  // Cálculos reales de órdenes
-  const totalHoy = orders.reduce((acc, curr) => acc + curr.total, 0);
-  const autosHoy = orders.length;
+  // Cálculos reales de órdenes filtradas por el turno activo
+  const activeOrders = React.useMemo(() => {
+    if (!turnoActivo) return [];
+    return orders.filter(o => o.turnoId === turnoActivo.id);
+  }, [orders, turnoActivo]);
 
-  const cashTotal = orders.filter(o => o.paymentMethod === 'Efectivo').reduce((acc, curr) => acc + curr.total, 0);
-  const cardTotal = orders.filter(o => o.paymentMethod === 'Tarjeta').reduce((acc, curr) => acc + curr.total, 0);
-  const memberTotal = orders.filter(o => o.paymentMethod === 'Membresía').reduce((acc, curr) => acc + curr.total, 0);
+  const totalHoy = activeOrders.reduce((acc, curr) => acc + curr.total, 0);
+  const autosHoy = activeOrders.length;
+
+  const cashTotal = activeOrders.filter(o => o.paymentMethod === 'Efectivo').reduce((acc, curr) => acc + curr.total, 0);
+  const cardTotal = activeOrders.filter(o => o.paymentMethod === 'Tarjeta').reduce((acc, curr) => acc + curr.total, 0);
+  const memberTotal = activeOrders.filter(o => o.paymentMethod === 'Membresía').reduce((acc, curr) => acc + curr.total, 0);
 
   // Garantiza un turno abierto DEL DÍA para la sucursal matriz al cargar el dashboard.
   // Si el turno abierto es de un día anterior, lo cierra con el efectivo del sistema
