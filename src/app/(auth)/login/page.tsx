@@ -46,15 +46,16 @@ export default function LoginPage() {
     }
 
     if (hash && hash.includes('access_token')) {
-      const isInviteLink = hash.includes('type=invite')
+      const searchParams = new URLSearchParams(window.location.search)
+      const isInviteLink = hash.includes('type=invite') || searchParams.get('type') === 'invite'
 
       // Helper to handle an authenticated invited user
       const handleInvitedUser = (session: { user: { email?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } }) => {
         const userMeta = session.user.user_metadata
-        const isInvited = session.user.app_metadata?.provider === 'email'
-          && !userMeta?.password_set
+        // Si viene de un link de invitación explícito O el proveedor es email y no tiene password_set
+        const isInvited = isInviteLink || (session.user.app_metadata?.provider === 'email' && !userMeta?.password_set)
 
-        if (isInvited || isInviteLink) {
+        if (isInvited) {
           setEmail(session.user.email || '')
           setMode('set-password')
         } else {
