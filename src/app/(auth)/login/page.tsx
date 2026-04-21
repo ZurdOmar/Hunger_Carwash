@@ -66,8 +66,7 @@ export default function LoginPage() {
     }
 
     // Invitación con tokens en el hash — pintamos el formulario INMEDIATAMENTE
-    // sin esperar a setSession (que a veces se cuelga y dejaba la página en blanco).
-    // setSession se ejecuta al hacer submit para que el usuario tenga feedback visual.
+    // y lanzamos setSession en background para que esté lista al hacer submit.
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1))
       const accessToken = params.get('access_token')
@@ -79,6 +78,15 @@ export default function LoginPage() {
         setEmail(emailFromToken)
         setPendingInvite({ accessToken, refreshToken })
         setMode('set-password')
+
+        // Establecer la sesión en segundo plano (fire-and-forget).
+        // Para cuando el usuario termine de llenar el formulario,
+        // la sesión ya estará lista.
+        supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }).catch(() => { /* se maneja en el submit */ })
+
         // Limpiamos el hash para que no quede expuesto en la barra de direcciones
         try {
           window.history.replaceState(null, '', window.location.pathname + window.location.search)
@@ -199,23 +207,22 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Si llegamos desde el link de invitación tenemos los tokens guardados.
-      // Usamos un timeout de seguridad para que setSession nunca cuelgue.
-      if (pendingInvite) {
-        const sessionResult = await Promise.race([
-          supabase.auth.setSession({
-            access_token: pendingInvite.accessToken,
-            refresh_token: pendingInvite.refreshToken,
-          }),
-          new Promise<{ data: null; error: Error }>((resolve) =>
-            setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 10000)
-          ),
-        ])
+      // Verificar que tengamos sesión (fue establecida en background al montar).
+      // Si no hay sesión y tenemos tokens pendientes, intentar una vez más.
+      let { data: { session } } = await supabase.auth.getSession()
 
-        if (sessionResult.error) {
-          setError('El enlace ya fue usado o ha expirado. Solicita uno nuevo.')
-          return
-        }
+      if (!session && pendingInvite) {
+        // La sesión de background aún no terminó. Intentar directamente.
+        const result = await supabase.auth.setSession({
+          access_token: pendingInvite.accessToken,
+          refresh_token: pendingInvite.refreshToken,
+        })
+        session = result.data.session
+      }
+
+      if (!session) {
+        setError('No se pudo establecer la sesión. Intenta abrir el enlace de invitación de nuevo.')
+        return
       }
 
       const { error: updateError } = await supabase.auth.updateUser({
@@ -228,18 +235,14 @@ export default function LoginPage() {
         return
       }
 
-      // Actualizar el nombre real en la tabla de perfiles si el usuario lo proporcionó
+      // Actualizar el nombre real en la tabla de perfiles
       if (fullName.trim()) {
         try {
-          const { data: { session } } = await supabase.auth.getSession()
-          if (session?.user) {
-            await supabase
-              .from('perfiles')
-              .update({ full_name: fullName.trim() })
-              .eq('id', session.user.id)
-          }
+          await supabase
+            .from('perfiles')
+            .update({ full_name: fullName.trim() })
+            .eq('id', session.user.id)
         } catch {
-          // No bloquear si falla la actualización del nombre
           console.error('Error updating profile name')
         }
       }
