@@ -83,7 +83,7 @@ export default function OperationsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 px-1">
         <div>
           <Heading level={2}>Seguimiento Operativo</Heading>
-          <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] italic opacity-60">Control de flujo Hunger Velocity v4.1</p>
+          <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] italic opacity-60">Control operativo en tiempo real</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative w-64 group">

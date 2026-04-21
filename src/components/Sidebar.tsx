@@ -16,12 +16,14 @@ import {
   LogOut,
   UserCog,
   Sparkles,
+  Sun,
+  Moon
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Logo } from "./Logo";
-import { ThemeSwitcher } from "./ThemeSwitcher";
 import { useAuth } from "@/lib/AuthContext";
+import { useTheme } from "./ThemeProvider";
 import { Button } from "./ui/Button";
 
 const navItems = [
@@ -41,6 +43,7 @@ const adminNavItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   return (
     <div className="w-64 h-full flex flex-col z-50 overflow-hidden relative
@@ -49,7 +52,7 @@ export function Sidebar() {
       {/* Subtle gradient overlay at the top */}
       <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-primary/[0.06] to-transparent pointer-events-none" />
 
-      <div className="mb-6 w-full px-0 relative z-10">
+      <div className="mb-4 mt-2 w-full px-0 relative z-10 flex justify-center">
         <Logo size="full" className="w-full" />
       </div>
       
@@ -161,14 +164,12 @@ export function Sidebar() {
       <div className="mt-auto space-y-3 pt-4 relative z-10">
         {/* Gradient separator */}
         <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mx-3" />
-        
-        <ThemeSwitcher />
 
         {profile && (
-          <div className="space-y-3 px-3 pb-2">
+          <div className="space-y-3 px-3 pb-4">
             <div className="glass-premium p-3 space-y-1">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20 shrink-0">
                   {(profile.full_name || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -181,21 +182,39 @@ export function Sidebar() {
                 </div>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-center gap-2 text-xs border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-300"
-              onClick={signOut}
-            >
-              <LogOut className="w-3 h-3" />
-              Cerrar sesión
-            </Button>
+            <div className="flex items-stretch gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 justify-center gap-2 text-xs border-white/[0.06] bg-white/[0.02] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-300"
+                onClick={signOut}
+              >
+                <LogOut className="w-3 h-3" />
+                Salir
+              </Button>
+              <div className="flex gap-1 bg-white/[0.02] border border-white/[0.06] p-1 rounded-md shrink-0">
+                <button
+                  onClick={() => setTheme("light")}
+                  className={cn(
+                    "p-1.5 rounded-md transition-all flex items-center justify-center",
+                    theme === "light" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary"
+                  )}
+                >
+                  <Sun className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setTheme("dark")}
+                  className={cn(
+                    "p-1.5 rounded-md transition-all flex items-center justify-center",
+                    theme === "dark" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary"
+                  )}
+                >
+                  <Moon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
-
-        <p className="text-[9px] text-muted-foreground/40 text-center pb-3 font-medium tracking-wider">
-          HUNGER ERP v1.2.0
-        </p>
       </div>
     </div>
   );
