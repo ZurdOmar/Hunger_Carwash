@@ -58,32 +58,6 @@ export function ThemeSwitcher() {
           </button>
         </div>
       </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          <Palette className="w-3 h-3" />
-          <span>Paleta de Color</span>
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {palettes.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => togglePalette(p.id)}
-              className={cn(
-                "w-full aspect-square rounded-md border-2 p-0.5 transition-all flex items-center justify-center",
-                palette === p.id ? "border-primary scale-110 shadow-lg shadow-primary/20" : "border-white/5 hover:border-white/20"
-              )}
-            >
-              <div 
-                className="w-full h-full rounded shadow-inner flex items-center justify-center" 
-                style={{ backgroundColor: p.color }}
-              >
-                {palette === p.id && <Check className="w-3 h-3 text-white" />}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
