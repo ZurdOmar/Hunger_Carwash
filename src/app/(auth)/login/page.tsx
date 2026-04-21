@@ -24,8 +24,27 @@ export default function LoginPage() {
   const [isBlocked, setIsBlocked] = useState(false)
 
   useEffect(() => {
-    // Check if the URL has a hash fragment with access_token (invite link)
+    // Check if the URL has a hash fragment
     const hash = window.location.hash
+    
+    if (hash && hash.includes('error=')) {
+      // Parse error from hash e.g. #error=access_denied&error_description=Email+link+is+invalid+or+has+expired
+      const params = new URLSearchParams(hash.substring(1))
+      const errorDesc = params.get('error_description')
+      
+      if (errorDesc) {
+        // Replace pluses with spaces
+        const msg = errorDesc.replace(/\+/g, ' ')
+        setError(msg === 'Email link is invalid or has expired' 
+          ? 'El enlace de invitación es inválido o ya ha expirado. Solicita uno nuevo.' 
+          : msg)
+      } else {
+        setError('Ocurrió un error con el enlace.')
+      }
+      setMode('login')
+      return
+    }
+
     if (hash && hash.includes('access_token')) {
       const isInviteLink = hash.includes('type=invite')
 
