@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Logo } from '@/components/Logo'
-import { AlertCircle, CheckCircle2, Loader, Eye, EyeOff } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader, Eye, EyeOff, User } from 'lucide-react'
 
 type PageMode = 'login' | 'set-password' | 'loading'
 
@@ -38,6 +38,7 @@ export default function LoginPage() {
   const [loginAttempts, setLoginAttempts] = useState(0)
   const [isBlocked, setIsBlocked] = useState(false)
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null)
+  const [fullName, setFullName] = useState('')
 
   useEffect(() => {
     const hash = window.location.hash
@@ -224,12 +225,23 @@ export default function LoginPage() {
         return
       }
 
+      // Actualizar el nombre real en la tabla de perfiles si el usuario lo proporcionó
+      if (fullName.trim()) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          await supabase
+            .from('perfiles')
+            .update({ full_name: fullName.trim() })
+            .eq('id', session.user.id)
+        }
+      }
+
       setPendingInvite(null)
+      setLoading(false)
       setSuccess('¡Contraseña creada exitosamente! Redirigiendo...')
 
       setTimeout(() => {
-        router.push('/pos')
-        router.refresh()
+        window.location.href = '/pos'
       }, 1500)
     } catch {
       setError('Error al establecer la contraseña. Intenta de nuevo.')
@@ -273,6 +285,22 @@ export default function LoginPage() {
               </p>
 
               <form onSubmit={handleSetPassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Tu nombre completo
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Ej: María López"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      disabled={loading || !!success}
+                      className="w-full h-10 pl-10"
+                    />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  </div>
+                </div>
                 {error && (
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                     <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
