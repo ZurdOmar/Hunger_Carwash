@@ -200,16 +200,20 @@ export default function LoginPage() {
 
     try {
       // Si llegamos desde el link de invitación tenemos los tokens guardados.
-      // Hacemos setSession justo aquí (con feedback visual del spinner) en vez de
-      // al montar, para que un cuelgue no deje la página en blanco.
+      // Usamos un timeout de seguridad para que setSession nunca cuelgue.
       if (pendingInvite) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: pendingInvite.accessToken,
-          refresh_token: pendingInvite.refreshToken,
-        })
-        if (sessionError) {
+        const sessionResult = await Promise.race([
+          supabase.auth.setSession({
+            access_token: pendingInvite.accessToken,
+            refresh_token: pendingInvite.refreshToken,
+          }),
+          new Promise<{ data: null; error: Error }>((resolve) =>
+            setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 10000)
+          ),
+        ])
+
+        if (sessionResult.error) {
           setError('El enlace ya fue usado o ha expirado. Solicita uno nuevo.')
-          setLoading(false)
           return
         }
       }
@@ -221,30 +225,35 @@ export default function LoginPage() {
 
       if (updateError) {
         setError(updateError.message)
-        setLoading(false)
         return
       }
 
       // Actualizar el nombre real en la tabla de perfiles si el usuario lo proporcionó
       if (fullName.trim()) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          await supabase
-            .from('perfiles')
-            .update({ full_name: fullName.trim() })
-            .eq('id', session.user.id)
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.user) {
+            await supabase
+              .from('perfiles')
+              .update({ full_name: fullName.trim() })
+              .eq('id', session.user.id)
+          }
+        } catch {
+          // No bloquear si falla la actualización del nombre
+          console.error('Error updating profile name')
         }
       }
 
       setPendingInvite(null)
-      setLoading(false)
       setSuccess('¡Contraseña creada exitosamente! Redirigiendo...')
 
       setTimeout(() => {
         window.location.href = '/pos'
       }, 1500)
-    } catch {
+    } catch (err) {
+      console.error('handleSetPassword error:', err)
       setError('Error al establecer la contraseña. Intenta de nuevo.')
+    } finally {
       setLoading(false)
     }
   }
