@@ -30,14 +30,15 @@ import {
 import { cn } from "@/lib/utils";
 import { OrderStatus, Order } from "@/lib/types";
 import { useConfig } from "@/lib/ConfigContext";
+import { useRouter } from "next/navigation";
 
 const COLUMNS: OrderStatus[] = ['Recepción', 'Lavado', 'Secado', 'Listo'];
 
 export default function OperationsPage() {
   const { orders, updateOrderStatus, updateOrderAssignment, washers, bays } = useConfig();
+  const router = useRouter();
   const [filter, setFilter] = React.useState("");
   const [assigningOrder, setAssigningOrder] = React.useState<Order | null>(null);
-  const [showCorte, setShowCorte] = React.useState(false);
   const [activeFilters, setActiveFilters] = React.useState({
     size: 'all',
     washer: 'all',
@@ -94,7 +95,7 @@ export default function OperationsPage() {
               className="pl-9 h-11 bg-muted/20 border-white/5 font-bold uppercase tracking-widest text-xs"
             />
           </div>
-          <Button variant="outline" className="h-11 border-white/10 glass font-black uppercase text-[10px] tracking-widest gap-2 hover:bg-green-500/10 hover:text-green-500 transition-all" onClick={() => setShowCorte(true)}>
+          <Button variant="outline" className="h-11 border-white/10 glass font-black uppercase text-[10px] tracking-widest gap-2 hover:bg-green-500/10 hover:text-green-500 transition-all" onClick={() => router.push('/dashboard')}>
             <Banknote className="w-4 h-4 text-green-500" /> Corte de Caja
           </Button>
           <Button variant="outline" size="icon" className={cn("h-11 w-11 border-white/10 glass", (activeFilters.size !== 'all' || activeFilters.washer !== 'all') && "border-primary text-primary")}>
@@ -212,72 +213,6 @@ export default function OperationsPage() {
         ))}
       </div>
 
-      {/* MODAL CORTE DE CAJA */}
-      <AnimatePresence>
-        {showCorte && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCorte(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-                <motion.div 
-                    initial={{ scale: 0.9, opacity: 0, y: 20 }} 
-                    animate={{ scale: 1, opacity: 1, y: 0 }} 
-                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                    className="relative w-full max-w-2xl glass border-white/10 shadow-velocity overflow-hidden"
-                >
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-primary to-green-500" />
-                    <div className="p-10 space-y-8">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <Heading level={2}>Corte de Caja</Heading>
-                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Resumen Financiero Hunger Velocity</p>
-                            </div>
-                            <button onClick={() => setShowCorte(false)} className="p-3 hover:bg-white/5 rounded-2xl transition-all"><X className="w-6 h-6" /></button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="p-8 rounded-3xl bg-primary/10 border-2 border-primary/20 relative group overflow-hidden">
-                                <DollarSign className="absolute -bottom-4 -right-4 w-24 h-24 text-primary/5 group-hover:rotate-12 transition-transform" />
-                                <p className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-2">Ingreso Total</p>
-                                <p className="text-6xl font-black italic tracking-tighter text-glow text-primary">${stats.total}</p>
-                                <p className="text-[10px] font-bold text-white/40 uppercase mt-4 tracking-widest">{stats.count} SERVICIOS COMPLETADOS</p>
-                            </div>
-                            <div className="space-y-3">
-                                <div className="p-6 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Banknote className="w-5 h-5 text-green-500" />
-                                        <span className="text-xs font-black uppercase tracking-widest">Efectivo</span>
-                                    </div>
-                                    <span className="text-xl font-black italic tracking-tighter text-green-500">${stats.efectivo}</span>
-                                </div>
-                                <div className="p-6 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <CreditCard className="w-5 h-5 text-blue-500" />
-                                        <span className="text-xs font-black uppercase tracking-widest">Tarjeta</span>
-                                    </div>
-                                    <span className="text-xl font-black italic tracking-tighter text-blue-500">${stats.tarjeta}</span>
-                                </div>
-                                <div className="p-6 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <UserRound className="w-5 h-5 text-primary" />
-                                        <span className="text-xs font-black uppercase tracking-widest">Membresía</span>
-                                    </div>
-                                    <span className="text-xl font-black italic tracking-tighter text-primary">${stats.membresia}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-4">
-                            <Button className="flex-1 h-14 bg-white text-black font-black uppercase tracking-widest hover:bg-white/90" onClick={() => window.print()}>
-                                <Download className="w-4 h-4 mr-2" /> DESCARGAR REPORTE
-                            </Button>
-                            <Button className="flex-1 h-14 bg-primary text-black font-black uppercase tracking-widest" onClick={() => setShowCorte(false)}>
-                                FINALIZAR TURNO
-                            </Button>
-                        </div>
-                    </div>
-                </motion.div>
-            </div>
-        )}
-      </AnimatePresence>
 
       {/* MODAL DE ASIGNACIÓN (Mantener funcionalidad existente) */}
       <AnimatePresence>
