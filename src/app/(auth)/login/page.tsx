@@ -43,6 +43,15 @@ export default function LoginPage() {
     const hash = window.location.hash
     const searchParams = new URLSearchParams(window.location.search)
 
+    // Si detectamos la señal de logout, forzamos limpieza local y limpiamos la URL
+    if (searchParams.get('logout') === 'true') {
+      supabase.auth.signOut().then(() => {
+        router.replace('/login')
+        setMode('login')
+      })
+      return
+    }
+
     // Error explícito en el hash (link inválido/expirado entregado por Supabase)
     if (hash && hash.includes('error=')) {
       const params = new URLSearchParams(hash.substring(1))

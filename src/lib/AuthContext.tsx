@@ -89,12 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       await supabase.auth.signOut()
       
-      // Usamos window.location para forzar un refresco total y limpiar el caché de Next.js
-      window.location.href = '/login'
+      // Usamos window.location con un parámetro especial para romper el bucle de auto-login del middleware
+      window.location.href = '/login?logout=true'
     } catch (error) {
       console.error('Error signing out:', error)
-      // En caso de error, intentamos forzar la salida igualmente
-      window.location.href = '/login'
+      // En caso de error, intentamos forzar la salida igualmente con la señal de logout
+      window.location.href = '/login?logout=true'
     }
   }
 

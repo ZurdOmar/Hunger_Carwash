@@ -20,8 +20,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Con sesión en login → redirect a /pos (a menos que sea una invitación)
-  if (session && pathname === '/login' && !request.nextUrl.searchParams.has('type')) {
+  // Con sesión en login → redirect a /pos (a menos que sea una invitación o un logout explícito)
+  if (session && pathname === '/login' && !request.nextUrl.searchParams.has('type') && !request.nextUrl.searchParams.has('logout')) {
     return NextResponse.redirect(new URL('/pos', request.url))
   }
 
