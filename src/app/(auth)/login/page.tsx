@@ -27,27 +27,38 @@ export default function LoginPage() {
     // Check if the URL has a hash fragment with access_token (invite link)
     const hash = window.location.hash
     if (hash && hash.includes('access_token')) {
-      // Supabase client will automatically pick up the token from the URL hash
-      // Listen for the auth state change
+      const isInviteLink = hash.includes('type=invite')
+
+      // Helper to handle an authenticated invited user
+      const handleInvitedUser = (session: { user: { email?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } }) => {
+        const userMeta = session.user.user_metadata
+        const isInvited = session.user.app_metadata?.provider === 'email'
+          && !userMeta?.password_set
+
+        if (isInvited || isInviteLink) {
+          setEmail(session.user.email || '')
+          setMode('set-password')
+        } else {
+          router.push('/pos')
+          router.refresh()
+        }
+      }
+
+      // Listen for future auth state changes
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           if (event === 'SIGNED_IN' && session?.user) {
-            // Check if this user needs to set a password (invited user)
-            const userMeta = session.user.user_metadata
-            const isInvited = session.user.app_metadata?.provider === 'email'
-              && !userMeta?.password_set
-
-            if (isInvited || hash.includes('type=invite')) {
-              setEmail(session.user.email || '')
-              setMode('set-password')
-            } else {
-              // Already has a password, redirect to app
-              router.push('/pos')
-              router.refresh()
-            }
+            handleInvitedUser(session)
           }
         }
       )
+
+      // Also check if Supabase already processed the token (race condition fix)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          handleInvitedUser(session)
+        }
+      })
 
       return () => subscription?.unsubscribe()
     } else {
