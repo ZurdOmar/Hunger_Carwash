@@ -20,8 +20,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Con sesión en login → redirect a /pos
-  if (session && pathname === '/login') {
+  // Con sesión en login → redirect a /pos (a menos que sea una invitación)
+  if (session && pathname === '/login' && !request.nextUrl.searchParams.has('type')) {
     return NextResponse.redirect(new URL('/pos', request.url))
   }
 
