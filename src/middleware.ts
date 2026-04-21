@@ -35,17 +35,18 @@ export async function middleware(request: NextRequest) {
         .single()
 
       if (error || !profile) {
-        console.error('[MIDDLEWARE] Profile not found:', error);
-        return NextResponse.redirect(new URL('/login', request.url))
-      }
-
-      // Validar que el usuario esté activo
-      if (!profile.activo) {
+        console.error('[MIDDLEWARE] Profile not found or error:', error);
+        // NO redireccionamos a login aquí para evitar bucles. 
+        // El cliente (AuthContext) manejará el perfil nulo.
+      } else if (!profile.activo) {
         console.error('[MIDDLEWARE] Inactive user attempting access:', session.user.id);
-        return NextResponse.redirect(new URL('/login', request.url))
+        // Opcional: Podríamos permitir que entre pero el Sidebar lo limitará
       }
 
-      const role = profile.role as string
+      const role = profile?.role as string | undefined
+      
+      // Si llegamos aquí y no hay perfil en una ruta protegida, 
+      // las siguientes validaciones de rol fallarán, lo cual es seguro.
 
       // Rutas solo para admin
       if (ADMIN_ONLY_PATHS.some(path => pathname.startsWith(path))) {

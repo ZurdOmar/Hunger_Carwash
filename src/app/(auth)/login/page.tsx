@@ -100,8 +100,14 @@ export default function LoginPage() {
       }
       return
     } else {
-      // No hash fragment — show normal login
-      setMode('login')
+      // No hay fragmento hash — verificar si ya tenemos una sesión activa (frecuente tras rebotes)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          handleInvitedUser(session)
+        } else {
+          setMode('login')
+        }
+      })
     }
   }, [router])
 
