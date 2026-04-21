@@ -156,44 +156,46 @@ export default function DashboardPage() {
     <div className="space-y-8 pb-20 overflow-y-auto pr-2">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <Heading level={2}>Panel Administrativo</Heading>
-          <p className="text-muted-foreground text-sm font-medium italic">Hunger Car Wash • Vista en tiempo real</p>
+          <Heading level={2}>
+            <span className="text-gradient">Panel Administrativo</span>
+          </Heading>
+          <p className="text-muted-foreground text-sm font-medium">Hunger Car Wash • Vista en tiempo real</p>
         </div>
         <div className="flex gap-3">
-          <Button onClick={() => setShowCorteModal(true)} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 font-black italic tracking-tighter uppercase px-6">
+          <Button onClick={() => setShowCorteModal(true)} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 font-bold tracking-tight uppercase px-6 rounded-xl">
             Realizar Corte de Caja
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {realStats.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+            transition={{ delay: i * 0.08, duration: 0.5, ease: "easeOut" }}
           >
-            <Card className="glass group overflow-hidden border-white/5 hover:border-primary/20 transition-all">
+            <Card className="glass-premium stat-card card-shine group border-white/[0.06] hover:border-primary/20">
               <CardContent className="p-6 relative">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500">
                     <stat.icon className="w-16 h-16" />
                 </div>
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 rounded-2xl bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <div className="p-2.5 rounded-xl bg-primary/10 transition-all duration-300 group-hover:bg-primary/20 group-hover:shadow-lg group-hover:shadow-primary/10">
                     <stat.icon className="w-5 h-5 text-primary" />
                   </div>
                   <div className={cn(
-                    "flex items-center gap-1 text-[10px] font-black uppercase tracking-widest",
-                    stat.trend === "up" ? "text-green-500" : stat.trend === "down" ? "text-red-500" : "text-muted-foreground"
+                    "flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full",
+                    stat.trend === "up" ? "text-emerald-400 bg-emerald-500/10" : stat.trend === "down" ? "text-red-400 bg-red-500/10" : "text-muted-foreground bg-white/5"
                   )}>
                     {stat.change}
                     {stat.trend === "up" ? <ArrowUpRight className="w-3 h-3" /> : stat.trend === "down" ? <TrendingDown className="w-3 h-3" /> : null}
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] mb-1 leading-none">{stat.label}</p>
-                  <p className="text-3xl font-black italic tracking-tighter text-glow">{stat.value}</p>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-[0.2em] mb-1.5 leading-none">{stat.label}</p>
+                  <p className="text-3xl font-extrabold tracking-tight text-glow">{stat.value}</p>
                 </div>
               </CardContent>
             </Card>
@@ -202,17 +204,17 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 glass border-white/5 shadow-2xl">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-6">
+        <Card className="lg:col-span-2 glass-premium border-white/[0.06] shadow-2xl">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-white/[0.06] pb-6">
             <div>
-              <CardTitle className="text-xl font-black italic tracking-tighter uppercase">Rendimiento Financiero</CardTitle>
+              <CardTitle className="text-xl font-bold tracking-tight">Rendimiento Financiero</CardTitle>
               <CardDescription className="text-xs">Ingresos por día y proyección de crecimiento.</CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 bg-white/[0.04] p-1 rounded-lg">
               {['7D', '1M', '1Y'].map(t => (
                 <button key={t} className={cn(
-                  "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                  t === '7D' ? "bg-primary text-black" : "glass hover:bg-white/5"
+                  "px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all",
+                  t === '7D' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
                 )}>{t}</button>
               ))}
             </div>
@@ -220,48 +222,53 @@ export default function DashboardPage() {
           <CardContent className="p-8">
             <div className="h-64 flex items-end gap-3 px-4">
               {[45, 62, 55, 80, 72, 95, 88].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
-                    <div className="w-full relative">
+                <div key={i} className="flex-1 flex flex-col items-center gap-4 group cursor-pointer">
+                    <div className="w-full relative h-full flex items-end">
                         <motion.div 
                             initial={{ height: 0 }}
                             animate={{ height: `${h}%` }}
                             transition={{ delay: i * 0.1, duration: 1, ease: "circOut" }}
                             className={cn(
-                                "w-full rounded-t-xl transition-all duration-500 group-hover:brightness-125 mb-1 bg-gradient-to-t",
-                                i === 6 ? "from-primary to-primary/40 shadow-[0_0_20px_rgba(var(--primary),0.2)]" : "from-muted/40 to-muted/10"
+                                "w-full rounded-t-xl transition-all duration-500 group-hover:brightness-125",
+                                i === 5 ? "chart-bar-active" : "chart-bar-inactive"
                             )}
                         />
                     </div>
                 </div>
               ))}
             </div>
-            <div className="mt-8 grid grid-cols-7 gap-3 border-t border-white/5 pt-6 text-center">
-                {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
-                    <span key={i} className={cn("text-[10px] font-black uppercase tracking-widest", i === 6 ? "text-primary" : "text-muted-foreground")}>{d}</span>
+            <div className="mt-6 grid grid-cols-7 gap-3 border-t border-white/[0.04] pt-5 text-center">
+                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d, i) => (
+                    <span key={i} className={cn(
+                      "text-[10px] font-bold uppercase tracking-widest transition-colors",
+                      i === 5 ? "text-primary" : "text-muted-foreground/60"
+                    )}>{d}</span>
                 ))}
             </div>
           </CardContent>
         </Card>
 
         <div className="space-y-8">
-            <Card className="glass border-white/5 shadow-2xl overflow-hidden relative group">
-                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:rotate-12 transition-transform duration-500">
+            <Card className="glass-premium card-shine border-white/[0.06] shadow-2xl overflow-hidden relative group">
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:rotate-12 group-hover:opacity-[0.06] transition-all duration-700">
                     <Star className="w-32 h-32" />
                 </div>
                 <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-black italic tracking-tighter uppercase flex items-center gap-2 leading-none">
-                        <Star className="w-5 h-5 text-primary fill-primary" />
+                    <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2 leading-none">
+                        <div className="p-1.5 rounded-lg bg-amber-500/10">
+                          <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                        </div>
                         Membresías Activas
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-6xl font-black italic tracking-tighter leading-none tracking-glow">{members.length}</span>
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-5xl font-extrabold tracking-tight text-glow leading-none">{members.length}</span>
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Vehículos registrados</span>
                     </div>
                     <Button
                       variant="ghost"
-                      className="w-full text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10"
+                      className="w-full text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/10 rounded-xl"
                       onClick={() => router.push('/members')}
                     >
                       Ver todos los miembros <ChevronRight className="ml-1 w-3 h-3" />
@@ -269,15 +276,15 @@ export default function DashboardPage() {
                 </CardContent>
             </Card>
 
-            <Card className="glass border-primary/20 bg-primary/5 shadow-2xl overflow-hidden relative">
+            <Card className="glass-premium border-primary/15 bg-primary/[0.03] shadow-2xl overflow-hidden relative">
                 <CardContent className="p-6 space-y-4">
                     <div className="flex items-start gap-4">
-                        <div className="p-3 rounded-2xl bg-primary text-primary-foreground shadow-lg">
-                            <ShieldCheck className="w-6 h-6" />
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/20">
+                            <ShieldCheck className="w-5 h-5" />
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-sm font-black italic uppercase tracking-tight">Security Check</p>
-                            <p className="text-[10px] text-muted-foreground leading-relaxed font-bold uppercase tracking-widest">Respaldos al día. Sistema operando bajo protocolos Velocity v2.4.</p>
+                        <div className="space-y-1.5">
+                            <p className="text-sm font-bold tracking-tight">Sistema Protegido</p>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">Respaldos al día. Sistema operando bajo protocolos seguros.</p>
                         </div>
                     </div>
                 </CardContent>

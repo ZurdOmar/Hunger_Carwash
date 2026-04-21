@@ -282,36 +282,70 @@ export default function LoginPage() {
   if (mode === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader className="w-8 h-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-xs text-muted-foreground font-medium tracking-wider uppercase">Cargando...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Background Decoration */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px] rounded-full translate-y-1/3 -translate-x-1/4 pointer-events-none" />
+      {/* Ambient Background Orbs */}
+      <div className="absolute top-[-15%] right-[-10%] w-[500px] h-[500px] bg-primary/15 blur-[150px] rounded-full pointer-events-none" style={{ animation: 'gradient-shift 8s ease-in-out infinite' }} />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[350px] h-[350px] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-[40%] left-[50%] w-[200px] h-[200px] bg-accent/5 blur-[100px] rounded-full pointer-events-none" />
+
+      {/* Floating Particles */}
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={i}
+          className="particle"
+          style={{
+            left: `${15 + i * 14}%`,
+            top: `${20 + (i % 3) * 25}%`,
+            animationDelay: `${i * 1.3}s`,
+            animationDuration: `${6 + i * 1.5}s`,
+            width: `${4 + (i % 3) * 2}px`,
+            height: `${4 + (i % 3) * 2}px`,
+          }}
+        />
+      ))}
+
+      {/* Subtle grid */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.015]"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+          backgroundSize: '80px 80px',
+        }}
+      />
 
       <div className="w-full max-w-md z-10">
         <div className="flex justify-center mb-8">
           <Logo />
         </div>
 
-        <div className="bg-surface-container-lowest border border-white/5 rounded-2xl p-8 backdrop-blur-xl">
+        <div className="login-card p-8">
 
           {/* ===== SET PASSWORD MODE (Invited User) ===== */}
           {mode === 'set-password' && (
             <>
-              <h1 className="text-3xl font-bold text-foreground mb-2 text-center">
-                ¡Bienvenido al equipo!
-              </h1>
-              <p className="text-muted-foreground text-center mb-2">
-                Crea tu contraseña para acceder
-              </p>
-              <p className="text-sm text-primary text-center mb-6">
-                {email}
-              </p>
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
+                  <CheckCircle2 className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Invitación Verificada</span>
+                </div>
+                <h1 className="text-3xl font-bold text-foreground mb-2">
+                  ¡Bienvenido al equipo!
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Crea tu contraseña para acceder
+                </p>
+                <p className="text-sm text-primary font-medium mt-1">
+                  {email}
+                </p>
+              </div>
 
               <form onSubmit={handleSetPassword} className="space-y-4">
                 <div>
@@ -384,12 +418,12 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   disabled={loading || !!success}
-                  className="w-full h-10 font-bold uppercase tracking-widest"
+                  className="w-full h-12 font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-300 text-sm"
                 >
                   {loading ? (
                     <Loader className="w-4 h-4 animate-spin" />
                   ) : success ? (
-                    '✓ Listo'
+                    <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Listo</span>
                   ) : (
                     'Crear Contraseña'
                   )}
@@ -401,21 +435,23 @@ export default function LoginPage() {
           {/* ===== LOGIN MODE (Normal) ===== */}
           {mode === 'login' && (
             <>
-              <h1 className="text-3xl font-bold text-foreground mb-2 text-center">Bienvenido</h1>
-              <p className="text-muted-foreground text-center mb-8">
-                Inicia sesión en Hunger Car Wash ERP
-              </p>
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-foreground mb-2">Bienvenido</h1>
+                <p className="text-muted-foreground text-sm">
+                  Inicia sesión en Hunger Car Wash ERP
+                </p>
+              </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-5">
                 {error && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
                     <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
                     <p className="text-sm text-destructive">{error}</p>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                     Correo electrónico
                   </label>
                   <Input
@@ -424,12 +460,12 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
-                    className="w-full h-10"
+                    className="w-full h-11 rounded-xl bg-white/[0.04] border-white/[0.08] focus:border-primary/50 focus:bg-white/[0.06] transition-all duration-300"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                     Contraseña
                   </label>
                   <Input
@@ -438,14 +474,14 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
-                    className="w-full h-10"
+                    className="w-full h-11 rounded-xl bg-white/[0.04] border-white/[0.08] focus:border-primary/50 focus:bg-white/[0.06] transition-all duration-300"
                   />
                 </div>
 
                 <Button
                   type="submit"
                   disabled={loading || isBlocked}
-                  className="w-full h-10 font-bold uppercase tracking-widest"
+                  className="w-full h-12 font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-300 text-sm"
                 >
                   {loading ? (
                     <Loader className="w-4 h-4 animate-spin" />
@@ -456,6 +492,10 @@ export default function LoginPage() {
                   )}
                 </Button>
               </form>
+
+              <p className="text-center text-[10px] text-muted-foreground/40 mt-6 font-medium tracking-wider">
+                Hunger Car Wash ERP &copy; {new Date().getFullYear()}
+              </p>
             </>
           )}
 

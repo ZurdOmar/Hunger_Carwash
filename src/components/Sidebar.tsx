@@ -14,7 +14,8 @@ import {
   Users,
   Package,
   LogOut,
-  UserCog
+  UserCog,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -42,30 +43,59 @@ export function Sidebar() {
   const { profile, signOut } = useAuth();
 
   return (
-    <div className="w-64 h-full glass border-l-0 rounded-l-none flex flex-col z-50 overflow-hidden">
-      <div className="mb-8 w-full px-0">
+    <div className="w-64 h-full flex flex-col z-50 overflow-hidden relative
+      bg-card/80 backdrop-blur-xl border-r border-white/[0.06]"
+    >
+      {/* Subtle gradient overlay at the top */}
+      <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-primary/[0.06] to-transparent pointer-events-none" />
+
+      <div className="mb-6 w-full px-0 relative z-10">
         <Logo size="full" className="w-full" />
       </div>
       
-      <nav className="flex-1 space-y-2 px-4">
-        {navItems.map((item) => {
+      <nav className="flex-1 space-y-1 px-3 relative z-10">
+        {navItems.map((item, index) => {
           const isActive = pathname === item.href;
           return (
             <Link key={item.href} href={item.href}>
               <motion.div
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.04, duration: 0.3 }}
                 whileHover={{ x: 4 }}
                 className={cn(
-                  "flex items-center justify-between p-3 rounded-lg transition-all group",
+                  "flex items-center justify-between p-3 rounded-xl transition-all duration-300 group relative",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-primary"
+                    ? "sidebar-active text-primary-foreground shadow-lg shadow-primary/20"
+                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <item.icon className={cn("w-5 h-5", isActive ? "" : "group-hover:scale-110 transition-transform")} />
-                  <span className="font-medium text-sm">{item.label}</span>
+                  <div className={cn(
+                    "p-1.5 rounded-lg transition-all duration-300",
+                    isActive
+                      ? "bg-white/20"
+                      : "group-hover:bg-primary/10"
+                  )}>
+                    <item.icon className={cn(
+                      "w-4 h-4 transition-all duration-300",
+                      isActive ? "text-white" : "group-hover:text-primary group-hover:scale-110"
+                    )} />
+                  </div>
+                  <span className={cn(
+                    "font-medium text-sm tracking-tight",
+                    isActive ? "font-semibold text-white" : ""
+                  )}>{item.label}</span>
                 </div>
-                {isActive && <ChevronRight className="w-4 h-4" />}
+                {isActive && (
+                  <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  >
+                    <ChevronRight className="w-4 h-4 text-white/70" />
+                  </motion.div>
+                )}
               </motion.div>
             </Link>
           );
@@ -73,25 +103,53 @@ export function Sidebar() {
 
         {profile?.role === 'admin' && (
           <>
-            <div className="h-px bg-white/10 my-2" />
-            {adminNavItems.map((item) => {
+            <div className="relative my-3">
+              <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            </div>
+            <div className="flex items-center gap-2 px-3 mb-1">
+              <Sparkles className="w-3 h-3 text-accent/60" />
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Admin</span>
+            </div>
+            {adminNavItems.map((item, index) => {
               const isActive = pathname === item.href;
               return (
                 <Link key={item.href} href={item.href}>
                   <motion.div
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: (navItems.length + index) * 0.04, duration: 0.3 }}
                     whileHover={{ x: 4 }}
                     className={cn(
-                      "flex items-center justify-between p-3 rounded-lg transition-all group",
+                      "flex items-center justify-between p-3 rounded-xl transition-all duration-300 group relative",
                       isActive
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                        : "text-muted-foreground hover:bg-white/5 hover:text-primary"
+                        ? "sidebar-active text-primary-foreground shadow-lg shadow-primary/20"
+                        : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      <item.icon className={cn("w-5 h-5", isActive ? "" : "group-hover:scale-110 transition-transform")} />
-                      <span className="font-medium text-sm">{item.label}</span>
+                      <div className={cn(
+                        "p-1.5 rounded-lg transition-all duration-300",
+                        isActive ? "bg-white/20" : "group-hover:bg-primary/10"
+                      )}>
+                        <item.icon className={cn(
+                          "w-4 h-4 transition-all duration-300",
+                          isActive ? "text-white" : "group-hover:text-primary group-hover:scale-110"
+                        )} />
+                      </div>
+                      <span className={cn(
+                        "font-medium text-sm tracking-tight",
+                        isActive ? "font-semibold text-white" : ""
+                      )}>{item.label}</span>
                     </div>
-                    {isActive && <ChevronRight className="w-4 h-4" />}
+                    {isActive && (
+                      <motion.div
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                      >
+                        <ChevronRight className="w-4 h-4 text-white/70" />
+                      </motion.div>
+                    )}
                   </motion.div>
                 </Link>
               );
@@ -100,23 +158,33 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="mt-auto space-y-4 pt-4 border-t border-white/5">
+      <div className="mt-auto space-y-3 pt-4 relative z-10">
+        {/* Gradient separator */}
+        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mx-3" />
+        
         <ThemeSwitcher />
 
         {profile && (
-          <div className="space-y-3 px-2">
-            <div className="bg-white/5 rounded-lg p-3 text-xs space-y-1">
-              <p className="font-semibold text-foreground truncate">
-                {profile.full_name || 'Usuario'}
-              </p>
-              <p className="text-muted-foreground uppercase tracking-widest text-[9px]">
-                {profile.role}
-              </p>
+          <div className="space-y-3 px-3 pb-2">
+            <div className="glass-premium p-3 space-y-1">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20">
+                  {(profile.full_name || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-foreground text-sm truncate leading-tight">
+                    {profile.full_name || 'Usuario'}
+                  </p>
+                  <p className="text-muted-foreground uppercase tracking-[0.15em] text-[9px] font-bold">
+                    {profile.role}
+                  </p>
+                </div>
+              </div>
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="w-full justify-center gap-2 text-xs"
+              className="w-full justify-center gap-2 text-xs border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-300"
               onClick={signOut}
             >
               <LogOut className="w-3 h-3" />
@@ -125,7 +193,9 @@ export function Sidebar() {
           </div>
         )}
 
-        <p className="text-[10px] text-muted-foreground text-center">Velocity ERP v1.1.0-Branding</p>
+        <p className="text-[9px] text-muted-foreground/40 text-center pb-3 font-medium tracking-wider">
+          HUNGER ERP v1.2.0
+        </p>
       </div>
     </div>
   );

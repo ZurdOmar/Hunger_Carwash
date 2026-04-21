@@ -8,10 +8,23 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex h-screen w-full relative">
-      {/* Background Decoration */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none z-0" />
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px] rounded-full translate-y-1/3 -translate-x-1/4 pointer-events-none z-0" />
+    <div className="flex h-screen w-full relative overflow-hidden">
+      {/* Ambient glow — top right */}
+      <div className="absolute top-[-200px] right-[-100px] w-[600px] h-[600px]
+        bg-primary/15 blur-[150px] rounded-full pointer-events-none z-0
+        animate-[gradient-shift_8s_ease-in-out_infinite]"
+        style={{ backgroundSize: '200% 200%' }}
+      />
+      {/* Ambient glow — bottom left */}
+      <div className="absolute bottom-[-150px] left-[-50px] w-[400px] h-[400px]
+        bg-blue-600/8 blur-[120px] rounded-full pointer-events-none z-0" />
+      {/* Subtle grid pattern */}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.02]"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
+        }}
+      />
 
       <Sidebar />
 

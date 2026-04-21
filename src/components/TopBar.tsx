@@ -1,31 +1,57 @@
 "use client";
 
-import { Bell, User } from "lucide-react";
+import { Bell, User, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/AuthContext";
+import { cn } from "@/lib/utils";
 
 export function TopBar() {
   const { profile } = useAuth();
+  
+  const initials = (profile?.full_name || 'U')
+    .split(' ')
+    .map((n: string) => n.charAt(0))
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   return (
-    <header className="h-16 flex items-center justify-end px-6 border-b border-white/5 bg-background/50 backdrop-blur-sm z-40">
-      <div className="flex items-center gap-4">
-        <div className="flex flex-col items-end mr-4">
-          <span className="text-sm font-semibold">
-            {profile?.full_name || 'Usuario'}
+    <header className="h-16 flex items-center justify-between px-6 border-b border-white/[0.06] bg-card/40 backdrop-blur-xl z-40">
+      {/* Left side — breadcrumb / greeting */}
+      <div className="flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground/60">Hunger Car Wash</span>
+          <span className="text-muted-foreground/30">/</span>
+          <span className="font-semibold text-foreground">
+            {profile?.full_name ? `Hola, ${profile.full_name.split(' ')[0]}` : 'Panel'}
           </span>
-          <span className="text-[10px] text-green-400 flex items-center gap-1 uppercase font-bold tracking-tighter">
-            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+        </div>
+      </div>
+
+      {/* Right side */}
+      <div className="flex items-center gap-3">
+        {/* Status indicator */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
             En Línea
           </span>
         </div>
-        
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background" />
+
+        {/* Notification bell */}
+        <Button variant="ghost" size="icon" className="relative hover:bg-white/[0.04] rounded-xl">
+          <Bell className="w-[18px] h-[18px] text-muted-foreground" />
+          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-card shadow-lg shadow-primary/30" />
         </Button>
         
-        <div className="w-10 h-10 rounded-full glass flex items-center justify-center border-primary/20 overflow-hidden">
-          <User className="w-6 h-6 text-primary/60" />
+        {/* Avatar */}
+        <div className="avatar-ring w-9 h-9 rounded-full flex items-center justify-center shrink-0">
+          <div className="w-full h-full rounded-full bg-gradient-to-br from-primary via-primary/80 to-primary/50 flex items-center justify-center">
+            <span className="text-xs font-bold text-white">{initials}</span>
+          </div>
         </div>
       </div>
     </header>
