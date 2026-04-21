@@ -25,8 +25,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/pos', request.url))
   }
 
-  // Si está loggeado, validar roles y estado
-  if (session) {
+  // Si está loggeado y es una ruta protegida, validar roles y estado
+  if (session && !isPublicPath) {
     try {
       const { data: profile, error } = await supabase
         .from('perfiles')
