@@ -232,44 +232,35 @@ export default function LoginPage() {
 
       const userData = await updateRes.json()
 
-      // Ahora iniciar sesión normalmente con email/password (esto SÍ funciona con el SDK)
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password,
-      })
-
-      if (signInError) {
-        // La contraseña se guardó, pero el sign-in falló.
-        // Mandamos al usuario al login normal.
-        setPendingInvite(null)
-        setSuccess('¡Contraseña creada! Inicia sesión con tus credenciales.')
-        setTimeout(() => {
-          setMode('login')
-          setSuccess(null)
-          setPassword('')
-          setConfirmPassword('')
-        }, 2000)
-        return
-      }
-
-      // Actualizar el nombre real en la tabla de perfiles
+      // Actualizar nombre en perfiles vía REST directa (mismo patrón que el PUT a /auth/v1/user):
+      // el SDK aún no tiene sesión y no queremos crearla — el usuario debe ingresar manualmente.
       if (fullName.trim() && userData.id) {
         try {
-          await supabase
-            .from('perfiles')
-            .update({ full_name: fullName.trim() })
-            .eq('id', userData.id)
+          await fetch(`${supabaseUrl}/rest/v1/perfiles?id=eq.${userData.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${pendingInvite.accessToken}`,
+              'apikey': supabaseKey,
+              'Prefer': 'return=minimal',
+            },
+            body: JSON.stringify({ full_name: fullName.trim() }),
+          })
         } catch {
           console.error('Error updating profile name')
         }
       }
 
+      // No auto sign-in: mandamos al usuario a la pantalla de login con su email precargado
+      // para que ingrese con sus nuevas credenciales (garantiza sesión fresca al entrar a la app).
       setPendingInvite(null)
-      setSuccess('¡Contraseña creada exitosamente! Redirigiendo...')
-
+      setSuccess('¡Contraseña creada! Inicia sesión con tus credenciales.')
       setTimeout(() => {
-        window.location.href = '/pos'
-      }, 1500)
+        setMode('login')
+        setSuccess(null)
+        setPassword('')
+        setConfirmPassword('')
+      }, 2000)
     } catch (err) {
       console.error('handleSetPassword error:', err)
       setError('Error al establecer la contraseña. Intenta de nuevo.')

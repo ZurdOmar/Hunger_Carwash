@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { VehicleSize, Service, Order, Member, Bay, PromoRule, Washer } from "./types";
 import { supabase } from "./supabase";
 import { handleError, validateRequired, validateNumberRange } from "./errorHandler";
+import { useAuth } from "./AuthContext";
 
 interface VehicleSizeConfig {
   value: VehicleSize;
@@ -55,6 +56,8 @@ interface ConfigContextType {
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading } = useAuth();
+
   // Todo el estado inicia vacío: la fuente de verdad es Supabase.
   const [vehicleSizes, setVehicleSizes] = useState<VehicleSizeConfig[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -76,18 +79,20 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       "hunger_orders", "hunger_members",
     ].forEach(k => localStorage.removeItem(k));
 
+    // Esperamos a que AuthContext hidrate la sesión antes de leer tablas con RLS.
+    // Sin esta guarda, un render temprano (p.ej. tras aceptar invitación) dispara
+    // SELECTs sin JWT y deja los catálogos vacíos para siempre.
+    if (authLoading || !user) return;
+
     const syncWithSupabase = async () => {
-      // Obtener rol del usuario actual
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: profile } = await supabase
-          .from('perfiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        if (profile) {
-          setUserRole(profile.role);
-        }
+      // Rol del usuario actual (ya tenemos user.id desde AuthContext).
+      const { data: profile } = await supabase
+        .from('perfiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (profile) {
+        setUserRole(profile.role);
       }
 
       const [
@@ -238,7 +243,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     };
 
     syncWithSupabase();
-  }, []);
+  }, [user?.id, authLoading]);
 
   // --- Catálogos ---
   const addVehicleSize = async (name: string, price: number) => {
