@@ -209,29 +209,23 @@ export default function POSPage() {
     
     let vehId = currentVehicleId;
     try {
-        if (!vehId) {
-            const { data: newVeh, error: vehErr } = await supabase
-                .from("vehiculos")
-                .insert({
-                    placa: vehicle.placa,
-                    marca: vehicle.brand,
-                    modelo: vehicle.model || "N/A",
-                    tamano: selectedSize as any
-                })
-                .select()
-                .single();
-            if (vehErr) throw vehErr;
-            if (newVeh) vehId = newVeh.id;
-        } else {
-            const { error: updErr } = await supabase
-                .from("vehiculos")
-                .update({
-                    marca: vehicle.brand,
-                    modelo: vehicle.model || "N/A",
-                    tamano: selectedSize as any
-                })
-                .eq("id", vehId);
-            if (updErr) throw updErr;
+        // Upsert por placa: idempotente ante reintentos. Si el primer submit crea
+        // la fila pero algo posterior falla, el segundo intento reutiliza esa misma
+        // fila en vez de chocar con vehiculos_placa_key.
+        const { data: savedVeh, error: vehErr } = await supabase
+            .from("vehiculos")
+            .upsert({
+                placa: vehicle.placa,
+                marca: vehicle.brand,
+                modelo: vehicle.model || "N/A",
+                tamano: selectedSize as any,
+            }, { onConflict: 'placa' })
+            .select()
+            .single();
+        if (vehErr) throw vehErr;
+        if (savedVeh) {
+            vehId = savedVeh.id;
+            setCurrentVehicleId(savedVeh.id);
         }
 
         if (vehId) {
@@ -255,6 +249,7 @@ export default function POSPage() {
                 }).select().single();
 
                 if (orderErr) throw orderErr;
+                console.log('[POS] Orden creada OK — vehId:', vehId, 'orderId:', newOrderData?.id, 'folio:', newOrderData?.folio);
                 if (newOrderData) {
                     const newOrder: Order = {
                         id: newOrderData.id,
@@ -279,6 +274,7 @@ export default function POSPage() {
                     };
 
                     setTimeout(() => {
+                        console.log('[POS] setTimeout fired — invocando addOrder + router.push');
                         addOrder(newOrder);
                         setIsFinishing(false);
                         router.push('/operations');
