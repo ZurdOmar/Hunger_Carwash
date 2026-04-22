@@ -165,56 +165,54 @@ export function Sidebar() {
         {/* Gradient separator */}
         <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mx-3" />
 
-        {profile && (
-          <div className="space-y-3 px-3 pb-4">
-            <div className="glass-premium p-3 space-y-1">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20 shrink-0">
-                  {(profile.full_name || 'U').charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-foreground text-sm truncate leading-tight">
-                    {profile.full_name || 'Usuario'}
-                  </p>
-                  <p className="text-muted-foreground uppercase tracking-[0.15em] text-[9px] font-bold">
-                    {profile.role}
-                  </p>
-                </div>
+        <div className="space-y-3 px-3 pb-4">
+          <div className="glass-premium p-3 space-y-1">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20 shrink-0">
+                {(profile?.full_name || 'U').charAt(0).toUpperCase()}
               </div>
-            </div>
-            <div className="flex items-stretch gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 justify-center gap-2 text-xs border-white/[0.06] bg-white/[0.02] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-300"
-                onClick={signOut}
-              >
-                <LogOut className="w-3 h-3" />
-                Salir
-              </Button>
-              <div className="flex gap-1 bg-white/[0.02] border border-white/[0.06] p-1 rounded-md shrink-0">
-                <button
-                  onClick={() => setTheme("light")}
-                  className={cn(
-                    "p-1.5 rounded-md transition-all flex items-center justify-center",
-                    theme === "light" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary"
-                  )}
-                >
-                  <Sun className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => setTheme("dark")}
-                  className={cn(
-                    "p-1.5 rounded-md transition-all flex items-center justify-center",
-                    theme === "dark" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary"
-                  )}
-                >
-                  <Moon className="w-3.5 h-3.5" />
-                </button>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground text-sm truncate leading-tight">
+                  {profile?.full_name || 'Cargando…'}
+                </p>
+                <p className="text-muted-foreground uppercase tracking-[0.15em] text-[9px] font-bold">
+                  {profile?.role || '—'}
+                </p>
               </div>
             </div>
           </div>
-        )}
+          <div className="flex items-stretch gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 justify-center gap-2 text-xs border-white/[0.06] bg-white/[0.02] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-300"
+              onClick={signOut}
+            >
+              <LogOut className="w-3 h-3" />
+              Salir
+            </Button>
+            <div className="flex gap-1 bg-white/[0.02] border border-white/[0.06] p-1 rounded-md shrink-0">
+              <button
+                onClick={() => setTheme("light")}
+                className={cn(
+                  "p-1.5 rounded-md transition-all flex items-center justify-center",
+                  theme === "light" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary"
+                )}
+              >
+                <Sun className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setTheme("dark")}
+                className={cn(
+                  "p-1.5 rounded-md transition-all flex items-center justify-center",
+                  theme === "dark" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary"
+                )}
+              >
+                <Moon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

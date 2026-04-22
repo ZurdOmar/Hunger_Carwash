@@ -82,20 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = async () => {
-    try {
-      // Limpiamos los estados de forma inmediata para una respuesta instantánea en la UI
-      setUser(null)
-      setProfile(null)
-      
-      await supabase.auth.signOut()
-      
-      // Usamos window.location con un parámetro especial para romper el bucle de auto-login del middleware
-      window.location.href = '/login?logout=true'
-    } catch (error) {
-      console.error('Error signing out:', error)
-      // En caso de error, intentamos forzar la salida igualmente con la señal de logout
-      window.location.href = '/login?logout=true'
-    }
+    setUser(null)
+    setProfile(null)
+    // Fire-and-forget: no esperamos al servidor. supabase-js limpia las cookies locales sync,
+    // la llamada de revocación al servidor se completa (o falla) en paralelo sin bloquear la UI.
+    supabase.auth.signOut().catch((error) => console.error('Error signing out:', error))
+    window.location.href = '/login?logout=true'
   }
 
   const getRole = () => profile?.role || null
