@@ -444,8 +444,12 @@ export type Database = {
       }
     }
     Views: {
-      todos_usuarios: {
-        Row: {
+      [_ in never]: never
+    }
+    Functions: {
+      get_todos_usuarios: {
+        Args: Record<PropertyKey, never>
+        Returns: {
           id: string
           full_name: string | null
           role: 'admin' | 'supervisor' | 'cajero'
@@ -454,12 +458,8 @@ export type Database = {
           email: string
           last_sign_in_at: string | null
           auth_created_at: string
-        }
-        Relationships: []
+        }[]
       }
-    }
-    Functions: {
-      [_ in never]: never
     }
     Enums: {
       estado_membresia: "Activa" | "Cancelada" | "Vencida"
