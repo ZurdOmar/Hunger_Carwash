@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { VehicleSize, Service, Order, Member, Bay, PromoRule, Washer } from "./types";
 import { supabase } from "./supabase";
 import { handleError, validateRequired, validateNumberRange } from "./errorHandler";
@@ -18,32 +18,32 @@ interface ConfigContextType {
   vehicleSizes: VehicleSizeConfig[];
   services: Service[];
   basePrices: Record<string, number>;
-  
+
   // Operativa y Recursos
   orders: Order[];
   washers: Washer[];
   bays: Bay[];
-  
+
   // Fidelización y Promociones
   members: Member[];
   promoRules: PromoRule[];
-  
+
   // Acciones de Catálogo
   addVehicleSize: (name: string, price: number) => void;
   addService: (name: string, price: number, appliesToAll: boolean) => void;
   toggleVisibility: (id: string, type: 'size' | 'service') => void;
-  
+
   // Gestión de Órdenes (Kanban)
   addOrder: (order: Order) => void;
   updateOrderStatus: (orderId: string, newStatus: Order['status']) => void;
   updateOrderAssignment: (orderId: string, washerId?: string, bayNumber?: number) => void;
-  
+
   // Gestión de Fidelización
   addOrUpdateMember: (placa: string) => void;
   getMemberInfo: (placa: string) => Member | undefined;
   addPromoRule: (rule: PromoRule) => void;
   removePromoRule: (id: string) => void;
-  
+
   // Gestión de Recursos
   addWasher: (name: string) => void;
   toggleWasherStatus: (id: string) => void;
@@ -69,6 +69,10 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [promoRules, setPromoRules] = useState<PromoRule[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
 
+  // Guards para evitar re-sincronización innecesaria (fix ciclado)
+  const lastSyncedUserId = useRef<string | null>(null);
+  const syncInProgress = useRef(false);
+
   // Persistencia y Conexión con Supabase (fuente única de verdad)
   useEffect(() => {
     // Limpieza defensiva de claves legadas (cuando el cliente migra desde versiones previas
@@ -83,6 +87,11 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     // Sin esta guarda, un render temprano (p.ej. tras aceptar invitación) dispara
     // SELECTs sin JWT y deja los catálogos vacíos para siempre.
     if (authLoading || !user) return;
+
+    // Guard anti-ciclado: no re-sincronizar si ya se hizo para este usuario
+    // o si hay una sincronización en curso.
+    if (lastSyncedUserId.current === user.id || syncInProgress.current) return;
+    syncInProgress.current = true;
 
     const syncWithSupabase = async () => {
       // Rol del usuario actual (ya tenemos user.id desde AuthContext).
@@ -105,16 +114,16 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         supabase.from("reglas_promocion").select("*"),
       ]);
 
-      if (pricesRes.error)   console.error("precios_base:",   pricesRes.error);
-      if (servicesRes.error) console.error("servicios:",      servicesRes.error);
-      if (washersRes.error)  console.error("lavadores:",      washersRes.error);
-      if (baysRes.error)     console.error("cajones:",        baysRes.error);
-      if (promosRes.error)   console.error("reglas_promocion:", promosRes.error);
+      if (pricesRes.error) console.error("precios_base:", pricesRes.error);
+      if (servicesRes.error) console.error("servicios:", servicesRes.error);
+      if (washersRes.error) console.error("lavadores:", washersRes.error);
+      if (baysRes.error) console.error("cajones:", baysRes.error);
+      if (promosRes.error) console.error("reglas_promocion:", promosRes.error);
 
-      let dbPrices  = pricesRes.data;
+      let dbPrices = pricesRes.data;
       const dbServices = servicesRes.data;
       let dbWashers = washersRes.data;
-      let dbBays    = baysRes.data;
+      let dbBays = baysRes.data;
       const dbPromos = promosRes.data;
 
       // Seed defaults si las tablas vienen vacías (para obtener IDs reales).
@@ -140,11 +149,11 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
       if (!dbPrices || dbPrices.length === 0) {
         await supabase.from("precios_base").insert([
-          { tamano: "Carro Chico",       label: "Chico",       icon: "🚗", precio: 110, is_hidden: false } as any,
-          { tamano: "Carro Mediano",     label: "Mediano",     icon: "🚘", precio: 115, is_hidden: false } as any,
+          { tamano: "Carro Chico", label: "Chico", icon: "🚗", precio: 110, is_hidden: false } as any,
+          { tamano: "Carro Mediano", label: "Mediano", icon: "🚘", precio: 115, is_hidden: false } as any,
           { tamano: "Camioneta Mediana", label: "Camioneta M", icon: "🚙", precio: 120, is_hidden: false } as any,
-          { tamano: "Camioneta Grande",  label: "Camioneta G", icon: "🚐", precio: 140, is_hidden: false } as any,
-          { tamano: "Van",               label: "Van / XL",    icon: "🚌", precio: 180, is_hidden: false } as any,
+          { tamano: "Camioneta Grande", label: "Camioneta G", icon: "🚐", precio: 140, is_hidden: false } as any,
+          { tamano: "Van", label: "Van / XL", icon: "🚌", precio: 180, is_hidden: false } as any,
         ]);
         const { data } = await supabase.from("precios_base").select("*").order("id");
         dbPrices = data;
@@ -242,7 +251,13 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    syncWithSupabase();
+    syncWithSupabase()
+      .then(() => {
+        lastSyncedUserId.current = user.id;
+      })
+      .finally(() => {
+        syncInProgress.current = false;
+      });
   }, [user?.id, authLoading]);
 
   // --- Catálogos ---
@@ -324,30 +339,30 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   const toggleVisibility = async (id: string, type: 'size' | 'service') => {
     if (type === 'size') {
-        const target = vehicleSizes.find(s => s.value === id);
-        if (!target) return;
-        const newHidden = !target.isHidden;
-        const { error } = await supabase
-          .from('precios_base')
-          .update({ is_hidden: newHidden } as any)
-          .eq('tamano', id as any);
-        if (error) {
-          console.error("toggleVisibility size error:", error);
-          alert(`No se pudo actualizar visibilidad: ${error.message}`);
-          return;
-        }
-        setVehicleSizes(prev => prev.map(s => s.value === id ? { ...s, isHidden: newHidden } : s));
+      const target = vehicleSizes.find(s => s.value === id);
+      if (!target) return;
+      const newHidden = !target.isHidden;
+      const { error } = await supabase
+        .from('precios_base')
+        .update({ is_hidden: newHidden } as any)
+        .eq('tamano', id as any);
+      if (error) {
+        console.error("toggleVisibility size error:", error);
+        alert(`No se pudo actualizar visibilidad: ${error.message}`);
+        return;
+      }
+      setVehicleSizes(prev => prev.map(s => s.value === id ? { ...s, isHidden: newHidden } : s));
     } else {
-        const target = services.find(s => s.id === id);
-        if (!target) return;
-        const newHidden = !target.isHidden;
-        const { error } = await supabase.from('servicios').update({ is_hidden: newHidden }).eq('id', id);
-        if (error) {
-          console.error("toggleVisibility service error:", error);
-          alert(`No se pudo actualizar visibilidad: ${error.message}`);
-          return;
-        }
-        setServices(prev => prev.map(s => s.id === id ? { ...s, isHidden: newHidden } : s));
+      const target = services.find(s => s.id === id);
+      if (!target) return;
+      const newHidden = !target.isHidden;
+      const { error } = await supabase.from('servicios').update({ is_hidden: newHidden }).eq('id', id);
+      if (error) {
+        console.error("toggleVisibility service error:", error);
+        alert(`No se pudo actualizar visibilidad: ${error.message}`);
+        return;
+      }
+      setServices(prev => prev.map(s => s.id === id ? { ...s, isHidden: newHidden } : s));
     }
   };
 
@@ -419,8 +434,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     const updated = [...promoRules, rule];
     setPromoRules(updated);
     await supabase.from("reglas_promocion").insert({
-        id: rule.id, nombre: rule.name, visitas_requeridas: rule.visitThreshold,
-        beneficio: rule.benefit, porcentaje_descuento: rule.discountPercent, activo: rule.isActive
+      id: rule.id, nombre: rule.name, visitas_requeridas: rule.visitThreshold,
+      beneficio: rule.benefit, porcentaje_descuento: rule.discountPercent, activo: rule.isActive
     });
   };
 
@@ -442,15 +457,15 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     setWashers([...washers, newWasher]);
     // Get actual ID from Supabase
     const { data } = await supabase.from('lavadores').insert({ nombre_completo: name, activo: true }).select().single();
-    if(data) {
-        setWashers(prev => prev.map(w => w.id === newId ? { ...w, id: data.id } : w));
+    if (data) {
+      setWashers(prev => prev.map(w => w.id === newId ? { ...w, id: data.id } : w));
     }
   };
 
   const toggleWasherStatus = async (id: string) => {
     let newStatus = false;
     let deactDate: string | undefined = undefined;
-    
+
     setWashers(prev => prev.map(w => {
       if (w.id === id) {
         newStatus = !w.isActive;
@@ -460,16 +475,16 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       return w;
     }));
 
-    await supabase.from('lavadores').update({ 
-        activo: newStatus, 
-        deactivated_at: deactDate 
+    await supabase.from('lavadores').update({
+      activo: newStatus,
+      deactivated_at: deactDate
     }).eq('id', id);
   };
 
   const addBay = async (label: string) => {
     const { data } = await supabase.from('cajones').insert({ label }).select().single();
     if (data) {
-        setBays([...bays, { id: data.id, label: data.label, defaultWasherId: data.default_lavador_id || undefined }]);
+      setBays([...bays, { id: data.id, label: data.label, defaultWasherId: data.default_lavador_id || undefined }]);
     }
   };
 
@@ -508,29 +523,29 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     // Actualizar Precios Base (Tamaños)
     const newPrices = { ...basePrices };
     Object.keys(newPrices).forEach(async key => {
-        newPrices[key] = Math.round(newPrices[key] * factor);
-        await supabase.from('precios_base').update({ precio: newPrices[key] }).eq('tamano', key as any);
+      newPrices[key] = Math.round(newPrices[key] * factor);
+      await supabase.from('precios_base').update({ precio: newPrices[key] }).eq('tamano', key as any);
     });
     setBasePrices(newPrices);
 
     // Actualizar Servicios Extras
     const newServices = services.map(s => ({
-        ...s,
-        basePrice: Math.round(s.basePrice * factor)
+      ...s,
+      basePrice: Math.round(s.basePrice * factor)
     }));
     setServices(newServices);
 
     for (const s of newServices) {
-        await supabase.from('servicios').update({ precio_base: s.basePrice }).eq('id', s.id);
+      await supabase.from('servicios').update({ precio_base: s.basePrice }).eq('id', s.id);
     }
   };
 
   return (
     <ConfigContext.Provider value={{
-        vehicleSizes, services, basePrices, orders, washers, bays, members, promoRules,
-        addVehicleSize, addService, toggleVisibility, addOrder, updateOrderStatus, updateOrderAssignment,
-        addOrUpdateMember, getMemberInfo: (p) => members.find(m => m.placa === p), addPromoRule, removePromoRule,
-        addWasher, toggleWasherStatus, addBay, removeBay, updateBayDefaultWasher, applyPercentIncrease
+      vehicleSizes, services, basePrices, orders, washers, bays, members, promoRules,
+      addVehicleSize, addService, toggleVisibility, addOrder, updateOrderStatus, updateOrderAssignment,
+      addOrUpdateMember, getMemberInfo: (p) => members.find(m => m.placa === p), addPromoRule, removePromoRule,
+      addWasher, toggleWasherStatus, addBay, removeBay, updateBayDefaultWasher, applyPercentIncrease
     }}>
       {children}
     </ConfigContext.Provider>
