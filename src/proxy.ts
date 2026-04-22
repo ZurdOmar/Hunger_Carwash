@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/login']
 const ADMIN_ONLY_PATHS = ['/settings', '/reports']
-const SUPERVISOR_PATHS = ['/dashboard', '/operations', '/reports']
+const SUPERVISOR_PATHS = ['/dashboard', '/reports']
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request })
