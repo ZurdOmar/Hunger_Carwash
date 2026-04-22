@@ -126,38 +126,9 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       let dbBays = baysRes.data;
       const dbPromos = promosRes.data;
 
-      // Seed defaults si las tablas vienen vacías (para obtener IDs reales).
-      if (!dbWashers || dbWashers.length === 0) {
-        await supabase.from("lavadores").insert([
-          { nombre_completo: "Jeran", activo: true },
-          { nombre_completo: "Omar", activo: true },
-          { nombre_completo: "Zurd", activo: true },
-          { nombre_completo: "Velocity", activo: true },
-        ]);
-        const { data } = await supabase.from("lavadores").select("*");
-        dbWashers = data;
-      }
-
-      if (!dbBays || dbBays.length === 0) {
-        await supabase.from("cajones").insert([
-          { label: "Cajón 1" }, { label: "Cajón 2" }, { label: "Cajón 3" },
-          { label: "Cajón 4" }, { label: "Cajón 5" },
-        ]);
-        const { data } = await supabase.from("cajones").select("*").order("id");
-        dbBays = data;
-      }
-
-      if (!dbPrices || dbPrices.length === 0) {
-        await supabase.from("precios_base").insert([
-          { tamano: "Carro Chico", label: "Chico", icon: "🚗", precio: 110, is_hidden: false } as any,
-          { tamano: "Carro Mediano", label: "Mediano", icon: "🚘", precio: 115, is_hidden: false } as any,
-          { tamano: "Camioneta Mediana", label: "Camioneta M", icon: "🚙", precio: 120, is_hidden: false } as any,
-          { tamano: "Camioneta Grande", label: "Camioneta G", icon: "🚐", precio: 140, is_hidden: false } as any,
-          { tamano: "Van", label: "Van / XL", icon: "🚌", precio: 180, is_hidden: false } as any,
-        ]);
-        const { data } = await supabase.from("precios_base").select("*").order("id");
-        dbPrices = data;
-      }
+      // Nota: La lógica de auto-sembrado fue eliminada.
+      // Los catálogos (lavadores, cajones, precios_base) deben crearse
+      // manualmente desde la interfaz de Configuración o directamente en Supabase.
 
       if (dbPrices) {
         const pb: Record<string, number> = {};

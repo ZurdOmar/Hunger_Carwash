@@ -10,7 +10,7 @@ Proveedor: _______________________________
 
 ## 1. Objeto de la entrega
 
-Se entrega el acceso al sistema "Hunger Car Wash" en su versión operativa, accesible en línea desde cualquier navegador. Comprende: registro de órdenes, control de cajones y lavadores, corte de caja, reportes analíticos y exportación de datos (CSV).
+Se entrega el acceso al sistema "Hunger Car Wash" en su versión operativa, accesible en línea desde cualquier navegador. Comprende: registro de órdenes, control de cajones y lavadores, corte de caja, Perfiles de usuarioreportes analíticos y exportación de datos (CSV).
 
 ## 2. Alojamiento (hosting)
 
@@ -39,14 +39,28 @@ Cualquier modificación, nueva funcionalidad, integración con sistemas externos
 
 Cada solicitud será evaluada y cotizada de forma independiente por el proveedor antes de su ejecución, y solo se iniciará una vez aceptada por escrito por el cliente.
 
-## 6. Aceptación
+# Hunger Carwash — Documentación de Roles de Usuario
 
-Con la firma del presente documento, el cliente reconoce y acepta las condiciones anteriores.
+Este documento detalla la arquitectura, implementación y reglas de negocio del sistema de gestión de accesos (RBAC - Role Based Access Control) del ERP/POS Hunger Carwash.
 
 ---
 
-Proveedor: _______________________________
+## 1. Definición de Roles
 
-Cliente: _______________________________
+El sistema está diseñado para manejar tres niveles de acceso claramente diferenciados, garantizando que cada usuario vea y manipule solo lo necesario para su función:
 
-Fecha: _______________________________
+| Rol | Descripción | Permisos Clave |
+| :--- | :--- | :--- |
+| **admin** | Administrador total del sistema. | Gestión de precios, servicios, empleados y reportes financieros globales. |
+| **supervisor** | Personal con autoridad sobre la operación diaria. | Supervisión de órdenes, gestión de inventarios y visualización de reportes de sucursal. |
+| **cajero** | Personal operativo del punto de venta. | Creación de órdenes, asignación de lavadores, recepción de pagos y corte de caja. |
+
+> [!IMPORTANT]
+> **Restricción de Cajeros**: Por regla de negocio, el sistema limita el número de cajeros activos a un máximo de **2** simultáneos, controlado mediante triggers en la base de datos para prevenir el uso indebido de licencias o el acceso no supervisado.
+
+# Accesos al sistema
+  para crear los usuarios, se deberan mandar un correo electronico a [zoteksolucionesia@gmail.com], con los siguientes datos:
+  nombre completo, correo electronico,  rol (admin, supervisor, cajero), una vez recibido el correo con los correos de los usuarios, se les hará llegar un link para que cada usuario genere su propia contraseña, la cual debe cumplir con los siguientes requisitos:
+  8 caracteres de longitud, incluir mayusculas, minusculas y numeros. Los usuarios no pueden tener el mismo correo electronico. por defecto, todos los usuarios son cajeros, para cambiar el rol a admin (administrador) que existirá solo 1, una vez que se registre el usuario, deberá de mandar correo[zoteksolucionesia@gmail.com] para solicitar el cambio de rol, el cual se hará manualmente desde la base de datos.
+  
+  
