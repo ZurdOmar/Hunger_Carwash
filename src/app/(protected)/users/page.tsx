@@ -55,38 +55,22 @@ export default function UsersPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState('');
 
-  // Protección: solo admin puede ver esta página
-  if (profile?.role !== 'admin') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              Acceso Denegado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Solo administradores pueden acceder a esta página.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+
 
   // Cargar usuarios
   React.useEffect(() => {
+    // Si no es admin, no cargar (el return temprano principal está abajo)
+    if (profile?.role !== 'admin') return;
+
     const loadUsuarios = async () => {
       setLoading(true);
       setError('');
       try {
         const { data, error: err } = await supabase
-          .from('todos_usuarios')
-          .select('*')
-          .order('created_at', { ascending: false });
+          .rpc('get_todos_usuarios');
 
         if (err) {
-          setError('Error al cargar usuarios');
+          setError(err.message || 'Error al cargar usuarios');
           console.error(err);
           return;
         }
@@ -101,7 +85,7 @@ export default function UsersPage() {
     };
 
     loadUsuarios();
-  }, []);
+  }, [profile?.role]);
 
   const handleChangeRole = async (userId: string, role: 'admin' | 'supervisor' | 'cajero') => {
     setIsSubmitting(true);
@@ -131,6 +115,25 @@ export default function UsersPage() {
       setIsSubmitting(false);
     }
   };
+
+  // Protección: solo admin puede ver esta página (DEBE IR DESPUÉS DE LOS HOOKS)
+  if (profile?.role !== 'admin') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              Acceso Denegado
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Solo administradores pueden acceder a esta página.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
