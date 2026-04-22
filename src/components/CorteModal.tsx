@@ -10,6 +10,7 @@ import { Badge } from './ui/Badge'
 import { DollarSign, FileText, Download, AlertCircle, Loader } from 'lucide-react'
 import type { Order } from '@/lib/types'
 import { generarCSVCorte, descargarCSV, cerrarTurno } from '@/lib/turnosService'
+import { toast } from 'sonner'
 
 interface CorteModalProps {
   isOpen: boolean
@@ -69,7 +70,7 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
 
     try {
       await cerrarTurno(turnoId, parseInt(montoDeclarado), totalSistema)
-      alert('Corte realizado y enviado exitosamente')
+      toast.success('Corte realizado y enviado exitosamente')
       onClose()
     } catch (err) {
       setError('Error al finalizar el turno')

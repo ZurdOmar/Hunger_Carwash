@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { VehicleSize, Service, Order, Member, Bay, PromoRule, Washer } from "./types";
 import { supabase } from "./supabase";
+import { ConfirmModal } from "@/components/ConfirmModal";
+import { toast } from "sonner";
 import { handleError, validateRequired, validateNumberRange } from "./errorHandler";
 import { useAuth } from "./AuthContext";
 
@@ -68,6 +70,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [promoRules, setPromoRules] = useState<PromoRule[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [confirmModalState, setConfirmModalState] = useState<{ isOpen: boolean; percent: number } | null>(null);
 
   // Guards para evitar re-sincronización innecesaria (fix ciclado)
   const lastSyncedUserId = useRef<string | null>(null);
@@ -235,7 +238,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const addVehicleSize = async (name: string, price: number) => {
     // Validar rol
     if (userRole !== 'admin') {
-      alert('Solo administradores pueden agregar tamaños de vehículo');
+      toast.error('Solo administradores pueden agregar tamaños de vehículo');
       return;
     }
 
@@ -243,14 +246,14 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
     // Validar nombre
     if (!tamano || tamano.length > 50) {
-      alert('Nombre debe estar entre 1 y 50 caracteres');
+      toast.error('Nombre debe estar entre 1 y 50 caracteres');
       return;
     }
 
     // Validar precio
     const priceError = validateNumberRange(price, 1, 50000, 'Precio');
     if (priceError) {
-      alert(priceError);
+      toast.error(priceError);
       return;
     }
 
@@ -260,18 +263,19 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       const msg = handleError(error, 'addVehicleSize', 'No se pudo guardar el tamaño');
-      alert(msg);
+      toast.error(msg);
       return;
     }
 
     setVehicleSizes(prev => [...prev, { value: tamano as VehicleSize, label: tamano, icon: "🚗", isHidden: false }]);
     setBasePrices(prev => ({ ...prev, [tamano]: price }));
+    toast.success('Tamaño agregado exitosamente');
   };
 
   const addService = async (name: string, price: number, appliesToAll: boolean) => {
     // Validar rol
     if (userRole !== 'admin') {
-      alert('Solo administradores pueden crear servicios');
+      toast.error('Solo administradores pueden crear servicios');
       return;
     }
 
@@ -279,14 +283,14 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
     // Validar nombre
     if (!serviceName || serviceName.length > 100) {
-      alert('Nombre debe estar entre 1 y 100 caracteres');
+      toast.error('Nombre debe estar entre 1 y 100 caracteres');
       return;
     }
 
     // Validar precio
     const priceError = validateNumberRange(price, 1, 50000, 'Precio');
     if (priceError) {
-      alert(priceError);
+      toast.error(priceError);
       return;
     }
 
@@ -297,7 +301,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       .single();
     if (error) {
       const msg = handleError(error, 'addService', 'No se pudo crear el servicio');
-      alert(msg);
+      toast.error(msg);
       return;
     }
     if (data) {
@@ -305,6 +309,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         id: data.id, name: data.nombre, description: data.descripcion || "",
         basePrice: data.precio_base, isHidden: data.is_hidden || false
       }]);
+      toast.success('Servicio creado exitosamente');
     }
   };
 
@@ -319,7 +324,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         .eq('tamano', id as any);
       if (error) {
         console.error("toggleVisibility size error:", error);
-        alert(`No se pudo actualizar visibilidad: ${error.message}`);
+        toast.error(`No se pudo actualizar visibilidad: ${error.message}`);
         return;
       }
       setVehicleSizes(prev => prev.map(s => s.value === id ? { ...s, isHidden: newHidden } : s));
@@ -330,7 +335,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('servicios').update({ is_hidden: newHidden }).eq('id', id);
       if (error) {
         console.error("toggleVisibility service error:", error);
-        alert(`No se pudo actualizar visibilidad: ${error.message}`);
+        toast.error(`No se pudo actualizar visibilidad: ${error.message}`);
         return;
       }
       setServices(prev => prev.map(s => s.id === id ? { ...s, isHidden: newHidden } : s));
@@ -472,23 +477,24 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const applyPercentIncrease = async (percent: number) => {
     // Validar rol - CRÍTICO
     if (userRole !== 'admin') {
-      alert('Solo administradores pueden aplicar cambios masivos de precios');
+      toast.error('Solo administradores pueden aplicar cambios masivos de precios');
       return;
     }
 
     // Validar porcentaje
     const percentError = validateNumberRange(percent, -50, 50, 'Porcentaje');
     if (percentError) {
-      alert(percentError);
+      toast.error(percentError);
       return;
     }
 
-    // Double-check: confirmar acción
-    const confirmed = window.confirm(
-      `¿Aplicar aumento del ${percent}% a TODOS los precios? Esta acción es irreversible.`
-    );
-    if (!confirmed) return;
+    // Abrir Modal de Confirmación
+    setConfirmModalState({ isOpen: true, percent });
+  };
 
+  const executePercentIncrease = async () => {
+    if (!confirmModalState) return;
+    const { percent } = confirmModalState;
     const factor = 1 + (percent / 100);
 
     // Actualizar Precios Base (Tamaños)
@@ -509,6 +515,9 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     for (const s of newServices) {
       await supabase.from('servicios').update({ precio_base: s.basePrice }).eq('id', s.id);
     }
+    
+    setConfirmModalState(null);
+    toast.success(`Precios actualizados (${percent > 0 ? '+' : ''}${percent}%) exitosamente`);
   };
 
   return (
@@ -519,6 +528,17 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       addWasher, toggleWasherStatus, addBay, removeBay, updateBayDefaultWasher, applyPercentIncrease
     }}>
       {children}
+      {confirmModalState && (
+        <ConfirmModal
+          isOpen={confirmModalState.isOpen}
+          title="Cambio Masivo de Precios"
+          message={`¿Aplicar ${confirmModalState.percent > 0 ? 'aumento' : 'descuento'} del ${confirmModalState.percent}% a TODOS los precios? Esta acción es irreversible.`}
+          onConfirm={executePercentIncrease}
+          onCancel={() => setConfirmModalState(null)}
+          confirmText="Sí, aplicar cambio"
+          isDestructive={true}
+        />
+      )}
     </ConfigContext.Provider>
   );
 }

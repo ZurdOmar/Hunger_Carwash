@@ -13,6 +13,7 @@ import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { getTurnoActivo } from "@/lib/turnosService";
+import { toast } from "sonner";
 import { 
   Check, 
   ChevronRight, 
@@ -186,7 +187,7 @@ export default function POSPage() {
             setStep("size");
         } catch (error: any) {
             console.error("Error buscando vehículo:", error);
-            alert(`No se pudo buscar el vehículo: ${error?.message || error}`);
+            toast.error(`No se pudo buscar el vehículo: ${error?.message || error}`);
         } finally {
             setIsLoading(false);
         }
@@ -286,13 +287,13 @@ export default function POSPage() {
     } catch (err: any) {
         console.error("Error saving order to Supabase:", err);
         const msg = err?.message || err?.error_description || JSON.stringify(err);
-        alert(`No se pudo registrar la orden: ${msg}`);
+        toast.error(`No se pudo registrar la orden: ${msg}`);
         setIsFinishing(false);
         return;
     }
 
     // Reached only if the happy-path above fell through without throwing (e.g. no matriz sucursal).
-    alert("No se pudo registrar la orden: no hay sucursal matriz configurada en Supabase.");
+    toast.error("No se pudo registrar la orden: no hay sucursal matriz configurada en Supabase.");
     setIsFinishing(false);
   };
 
