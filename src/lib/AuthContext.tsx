@@ -1,7 +1,9 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Clock, LogOut } from 'lucide-react'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
 
@@ -21,12 +23,22 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const INACTIVITY_MS = 30 * 60 * 1000
+const WARNING_BEFORE_MS = 60 * 1000
+const SESSION_CHECK_MS = 5 * 60 * 1000
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const initialized = useRef(false)
+
+  const [showWarning, setShowWarning] = useState(false)
+  const [countdown, setCountdown] = useState(60)
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const sessionCheckRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (initialized.current) return
@@ -92,6 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setUser(null)
     setProfile(null)
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
+    if (sessionCheckRef.current) clearInterval(sessionCheckRef.current)
     // Clear session from localStorage directly — no SDK call, no navigator.lock acquired.
     // This avoids blocking on a hung token-refresh that may be holding the lock.
     // Tokens expire naturally; for a higher-security app, add a background server revocation.
@@ -105,6 +120,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = '/login'
   }
 
+  const resetTimer = useCallback(() => {
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+    if (!user) return
+
+    setShowWarning(false)
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
+
+    inactivityTimerRef.current = setTimeout(() => {
+      setShowWarning(true)
+      setCountdown(60)
+
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
+            signOut()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }, INACTIVITY_MS - WARNING_BEFORE_MS)
+  }, [user, signOut])
+
+  const extendSession = () => {
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
+    setShowWarning(false)
+    setCountdown(60)
+    resetTimer()
+  }
+
+  useEffect(() => {
+    if (!user) return
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart']
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }))
+
+    resetTimer()
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetTimer))
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
+    }
+  }, [user, resetTimer])
+
+  useEffect(() => {
+    if (!user) return
+
+    sessionCheckRef.current = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        signOut()
+      }
+    }, SESSION_CHECK_MS)
+
+    return () => {
+      if (sessionCheckRef.current) clearInterval(sessionCheckRef.current)
+    }
+  }, [user, signOut])
+
   const getRole = () => profile?.role || null
 
   const value: AuthContextType = {
@@ -115,7 +191,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getRole,
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <AnimatePresence>
+        {showWarning && (
+          <motion.div
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-card border border-white/10 rounded-2xl p-8 shadow-2xl max-w-md"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 rounded-lg bg-amber-500/20">
+                  <Clock className="w-5 h-5 text-amber-500" />
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Sesión a punto de expirar</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">
+                Tu sesión se cerrará en <span className="font-bold text-amber-500">{countdown}</span> segundos por inactividad. ¿Deseas continuar?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={signOut}
+                  className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold border border-white/10 text-muted-foreground hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Cerrar sesión
+                </button>
+                <button
+                  onClick={extendSession}
+                  className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Continuar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {
