@@ -12,7 +12,7 @@ import { MEXICO_BRANDS } from "@/lib/data";
 import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { getTurnoActivo } from "@/lib/turnosService";
+import { getTurnoActivo, abrirTurno } from "@/lib/turnosService";
 import { toast } from "sonner";
 import { 
   Check, 
@@ -234,7 +234,16 @@ export default function POSPage() {
             const { data: matriz, error: matrizErr } = await supabase.from('sucursales').select('id').eq('es_matriz', true).single();
             if (matrizErr) throw matrizErr;
             if (matriz) {
-                const turnoActivo = await getTurnoActivo(matriz.id);
+                let turnoActivo = await getTurnoActivo(matriz.id);
+
+                // Auto-abrir turno si no existe
+                if (!turnoActivo && user) {
+                    const nuevoTurnoId = await abrirTurno(matriz.id, user.id, 0);
+                    if (nuevoTurnoId) {
+                        turnoActivo = await getTurnoActivo(matriz.id);
+                    }
+                }
+
                 const { data: newOrderData, error: orderErr } = await supabase.from("ordenes_servicio").insert({
                     vehiculo_id: vehId,
                     servicios: dynamicServices.filter(s => selectedServices.includes(s.id)) as any,
