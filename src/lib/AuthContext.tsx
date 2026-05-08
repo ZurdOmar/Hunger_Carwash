@@ -34,7 +34,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        // Race against 6 s: if getSession blocks on a hung token-refresh
+        // (expired token + unresponsive network), we still unblock the UI.
+        const result = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<{ data: { session: null } }>(resolve =>
+            setTimeout(() => resolve({ data: { session: null } }), 6000)
+          ),
+        ])
+        const session = result.data.session
         setUser(session?.user || null)
 
         if (session?.user) {
@@ -84,10 +92,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setUser(null)
     setProfile(null)
-    // Fire-and-forget: no esperamos al servidor. supabase-js limpia las cookies locales sync,
-    // la llamada de revocación al servidor se completa (o falla) en paralelo sin bloquear la UI.
-    supabase.auth.signOut().catch((error) => console.error('Error signing out:', error))
-    window.location.href = '/login?logout=true'
+    // Clear session from localStorage directly — no SDK call, no navigator.lock acquired.
+    // This avoids blocking on a hung token-refresh that may be holding the lock.
+    // Tokens expire naturally; for a higher-security app, add a background server revocation.
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith('sb-')) localStorage.removeItem(k)
+      }
+    } catch {}
+    // Hard reload destroys the current JS context (releases any pending locks)
+    // and boots a clean Supabase client on the login page.
+    window.location.href = '/login'
   }
 
   const getRole = () => profile?.role || null

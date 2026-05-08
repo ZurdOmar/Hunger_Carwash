@@ -44,13 +44,11 @@ export default function LoginPage() {
     const hash = window.location.hash
     const searchParams = new URLSearchParams(window.location.search)
 
-    // Si detectamos la señal de logout, mostramos el login inmediatamente y hacemos
-    // un signOut local no-bloqueante. No esperamos la respuesta de red para evitar
-    // que una contención de navigator.locks deje la página colgada en 'loading'.
+    // AuthContext.signOut() ya limpió localStorage y redirigió con hard-reload;
+    // si por alguna razón llega ?logout=true, sólo mostramos el form.
     if (searchParams.get('logout') === 'true') {
       setMode('login')
       router.replace('/login')
-      supabase.auth.signOut({ scope: 'local' }).catch(console.error)
       return
     }
 
@@ -92,10 +90,13 @@ export default function LoginPage() {
       return
     }
 
-    // Sin hash — rebote común: el usuario ya tiene cookie de sesión pero no ha puesto contraseña.
-    // Consultamos sesión; si existe y no tiene password_set, mostramos set-password.
+    // Sin hash — carga directa. Consultamos sesión para redirigir si ya está autenticado.
+    // Timeout de 5 s como red de seguridad: si getSession se bloquea en un refresh
+    // de token colgado (red intermitente), la pantalla de login aparece igual.
     const isInviteSearch = searchParams.get('type') === 'invite'
+    const fallback = setTimeout(() => setMode('login'), 5000)
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(fallback)
       if (session?.user) {
         const userMeta = session.user.user_metadata as Record<string, unknown> | undefined
         const appMeta = session.user.app_metadata as Record<string, unknown> | undefined
@@ -110,7 +111,10 @@ export default function LoginPage() {
       } else {
         setMode('login')
       }
-    }).catch(() => setMode('login'))
+    }).catch(() => {
+      clearTimeout(fallback)
+      setMode('login')
+    })
   }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -171,8 +175,11 @@ export default function LoginPage() {
       setIsBlocked(false)
       router.push('/pos')
       router.refresh()
-    } catch {
-      setError('Error al iniciar sesión. Intenta de nuevo.')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : ''
+      setError(msg.toLowerCase().includes('lock')
+        ? 'Sesión anterior pendiente. Recarga la página e intenta de nuevo.'
+        : 'Error al iniciar sesión. Intenta de nuevo.')
       setLoading(false)
     }
   }
