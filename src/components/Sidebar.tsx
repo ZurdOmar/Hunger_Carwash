@@ -173,7 +173,7 @@ export function Sidebar() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground text-sm truncate leading-tight">
-                  {profile?.full_name || 'Cargando…'}
+                  {profile ? (profile.full_name || `(${profile.role})`) : 'Cargando…'}
                 </p>
                 <p className="text-muted-foreground uppercase tracking-[0.15em] text-[9px] font-bold">
                   {profile?.role || '—'}

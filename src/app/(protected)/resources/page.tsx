@@ -30,19 +30,17 @@ export default function ResourcesPage() {
   const [newBayLabel, setNewBayLabel] = React.useState("");
   const [showSuccess, setShowSuccess] = React.useState(false);
 
-  const handleAddWasher = () => {
-    if(newWasherName) { 
-        addWasher(newWasherName); 
-        setNewWasherName(""); 
-        triggerSuccess();
+  const handleAddWasher = async () => {
+    if(newWasherName) {
+        const ok = await addWasher(newWasherName);
+        if (ok) { setNewWasherName(""); triggerSuccess(); }
     }
   };
 
-  const handleAddBay = () => {
-    if(newBayLabel) { 
-        addBay(newBayLabel); 
-        setNewBayLabel(""); 
-        triggerSuccess();
+  const handleAddBay = async () => {
+    if(newBayLabel) {
+        const ok = await addBay(newBayLabel);
+        if (ok) { setNewBayLabel(""); triggerSuccess(); }
     }
   };
 

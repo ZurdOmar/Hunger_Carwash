@@ -47,9 +47,9 @@ interface ConfigContextType {
   removePromoRule: (id: string) => void;
 
   // Gestión de Recursos
-  addWasher: (name: string) => void;
+  addWasher: (name: string) => Promise<boolean>;
   toggleWasherStatus: (id: string) => void;
-  addBay: (label: string) => void;
+  addBay: (label: string) => Promise<boolean>;
   removeBay: (id: number) => void;
   updateBayDefaultWasher: (bayId: number, washerId?: string) => void;
   applyPercentIncrease: (percent: number) => void;
@@ -422,7 +422,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   };
 
   // --- Recursos ---
-  const addWasher = async (name: string) => {
+  const addWasher = async (name: string): Promise<boolean> => {
     const newId = crypto.randomUUID();
     const newWasher: Washer = {
       id: newId,
@@ -430,12 +430,22 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       isActive: true,
       createdAt: new Date().toISOString(),
     };
-    setWashers([...washers, newWasher]);
-    // Get actual ID from Supabase
-    const { data } = await supabase.from('lavadores').insert({ nombre_completo: name, activo: true }).select().single();
+    setWashers(prev => [...prev, newWasher]);
+    const { data, error } = await supabase
+      .from('lavadores')
+      .insert({ nombre_completo: name, activo: true })
+      .select()
+      .single();
+    if (error) {
+      setWashers(prev => prev.filter(w => w.id !== newId));
+      const msg = handleError(error, 'addWasher', 'No se pudo guardar el lavador');
+      toast.error(msg);
+      return false;
+    }
     if (data) {
       setWashers(prev => prev.map(w => w.id === newId ? { ...w, id: data.id } : w));
     }
+    return true;
   };
 
   const toggleWasherStatus = async (id: string) => {
@@ -451,17 +461,32 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       return w;
     }));
 
-    await supabase.from('lavadores').update({
+    const { error } = await supabase.from('lavadores').update({
       activo: newStatus,
       deactivated_at: deactDate
     }).eq('id', id);
+
+    if (error) {
+      // Revertir cambio local si falla
+      setWashers(prev => prev.map(w => {
+        if (w.id === id) return { ...w, isActive: !newStatus, deactivatedAt: newStatus ? deactDate : undefined };
+        return w;
+      }));
+      toast.error('No se pudo actualizar el estado del lavador');
+    }
   };
 
-  const addBay = async (label: string) => {
-    const { data } = await supabase.from('cajones').insert({ label }).select().single();
-    if (data) {
-      setBays([...bays, { id: data.id, label: data.label, defaultWasherId: data.default_lavador_id || undefined }]);
+  const addBay = async (label: string): Promise<boolean> => {
+    const { data, error } = await supabase.from('cajones').insert({ label }).select().single();
+    if (error) {
+      const msg = handleError(error, 'addBay', 'No se pudo guardar el cajón');
+      toast.error(msg);
+      return false;
     }
+    if (data) {
+      setBays(prev => [...prev, { id: data.id, label: data.label, defaultWasherId: data.default_lavador_id || undefined }]);
+    }
+    return true;
   };
 
   const removeBay = async (id: number) => {

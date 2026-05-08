@@ -44,12 +44,13 @@ export default function LoginPage() {
     const hash = window.location.hash
     const searchParams = new URLSearchParams(window.location.search)
 
-    // Si detectamos la señal de logout, forzamos limpieza local y limpiamos la URL
+    // Si detectamos la señal de logout, mostramos el login inmediatamente y hacemos
+    // un signOut local no-bloqueante. No esperamos la respuesta de red para evitar
+    // que una contención de navigator.locks deje la página colgada en 'loading'.
     if (searchParams.get('logout') === 'true') {
-      supabase.auth.signOut().then(() => {
-        router.replace('/login')
-        setMode('login')
-      })
+      setMode('login')
+      router.replace('/login')
+      supabase.auth.signOut({ scope: 'local' }).catch(console.error)
       return
     }
 
