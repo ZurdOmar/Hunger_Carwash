@@ -46,28 +46,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initialized.current = true
 
     // onAuthStateChange fires INITIAL_SESSION when the listener is registered.
-    // We rely on that event to set the initial auth state and unblock loading.
+    // CRÍTICO: NO hacemos await del fetch de perfil aquí — eso bloqueaba
+    // setLoading(false) cuando la consulta a `perfiles` tardaba (RLS, latencia).
+    // El perfil se carga en un useEffect separado que depende de `user`.
     // A 12-second fallback covers the edge case where the SDK hangs entirely.
     const fallback = setTimeout(() => setLoading(false), 12000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setUser(session?.user || null)
+        if (!session?.user) setProfile(null)
 
-        if (session?.user) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('perfiles')
-            .select('id, full_name, role')
-            .eq('id', session.user.id)
-            .single()
-
-          if (profileError) console.error('[AuthContext] profile fetch error:', profileError)
-          if (profileData) setProfile(profileData as UserProfile)
-        } else {
-          setProfile(null)
-        }
-
-        // Unblock the UI after the initial auth state is known.
+        // Unblock the UI as soon as we know the auth state — no esperamos al perfil.
         if (event === 'INITIAL_SESSION') {
           clearTimeout(fallback)
           setLoading(false)
@@ -80,6 +70,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(fallback)
     }
   }, [])
+
+  // Carga del perfil desacoplada del flujo principal de auth.
+  // Si la consulta tarda, el resto de la app (ConfigContext, dashboard) ya está
+  // funcionando con `user` válido; solo el nombre en sidebar dirá "Cargando…"
+  // unos segundos hasta que termine este fetch.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, full_name, role')
+        .eq('id', user.id)
+        .single()
+
+      if (cancelled) return
+      if (error) {
+        console.error('[AuthContext] profile fetch error:', error)
+        return
+      }
+      if (data) setProfile(data as UserProfile)
+    })()
+
+    return () => { cancelled = true }
+  }, [user])
 
   const signOut = useCallback((reason?: 'inactivity' | 'expired') => {
     setUser(null)
