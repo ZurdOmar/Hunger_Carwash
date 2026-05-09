@@ -85,6 +85,23 @@ export async function getTurnoActivo(sucursalId: string): Promise<Turno | null> 
   }
 }
 
+// Días en calendario transcurridos desde la apertura del turno hasta hoy.
+// Se compara fecha local (no horas) para que la transición a "día siguiente" sea
+// a las 00:00 del calendario y no exactamente 24h después.
+//   - 0 = mismo día (turno normal)
+//   - 1 = día siguiente (banner amarillo: corte pendiente)
+//   - 2 = dos días después (banner rojo: urgente)
+//   - 3+ = tres o más días (bloqueo del POS)
+export function getDiasDesdeApertura(turno: Turno | null): number {
+  if (!turno?.fecha_apertura) return 0
+  const apertura = new Date(turno.fecha_apertura)
+  const hoy = new Date()
+  const aperturaDia = new Date(apertura.getFullYear(), apertura.getMonth(), apertura.getDate())
+  const hoyDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+  const ms = hoyDia.getTime() - aperturaDia.getTime()
+  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)))
+}
+
 export async function getHistorialCortes(sucursalId: string): Promise<Turno[]> {
   try {
     const { data, error } = await supabase

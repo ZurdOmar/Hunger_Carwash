@@ -12,7 +12,7 @@ import { MEXICO_BRANDS } from "@/lib/data";
 import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { getTurnoActivo, abrirTurno } from "@/lib/turnosService";
+import { getTurnoActivo, abrirTurno, getDiasDesdeApertura, type Turno } from "@/lib/turnosService";
 import { toast } from "sonner";
 import { 
   Check, 
@@ -27,7 +27,8 @@ import {
   Gift,
   AlertCircle,
   LayoutGrid,
-  TrendingDown
+  TrendingDown,
+  Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
@@ -55,6 +56,29 @@ export default function POSPage() {
   const [memberData, setMemberData] = React.useState<Member | undefined>(undefined);
   const [appliedPromo, setAppliedPromo] = React.useState<PromoRule | null>(null);
   const [detectedPromo, setDetectedPromo] = React.useState<PromoRule | null>(null);
+
+  // Carga el turno activo para detectar si lleva 3+ días abierto sin corte:
+  // en ese caso bloqueamos el POS para forzar el cierre antes de seguir
+  // mezclando ventas de varios días en el mismo turno.
+  const [turnoCheck, setTurnoCheck] = React.useState<Turno | null>(null);
+  const [turnoCheckLoaded, setTurnoCheckLoaded] = React.useState(false);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: matriz } = await supabase.from("sucursales").select("id").eq("es_matriz", true).single();
+      if (!matriz || cancelled) return;
+      const t = await getTurnoActivo(matriz.id);
+      if (cancelled) return;
+      setTurnoCheck(t);
+      setTurnoCheckLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const diasDesdeAperturaTurno = React.useMemo(
+    () => getDiasDesdeApertura(turnoCheck),
+    [turnoCheck]
+  );
+  const posBloqueado = turnoCheckLoaded && diasDesdeAperturaTurno >= 3;
 
   // Historial del vehículo (búsqueda en vivo mientras escriben la placa)
   type PlacaHistoryItem = {
@@ -305,6 +329,34 @@ export default function POSPage() {
     toast.error("No se pudo registrar la orden: no hay sucursal matriz configurada en Supabase.");
     setIsFinishing(false);
   };
+
+  if (posBloqueado) {
+    return (
+      <div className="max-w-2xl mx-auto pt-12">
+        <Card className="border-red-500/40 bg-red-500/5">
+          <CardContent className="p-8 text-center space-y-5">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/15">
+              <Lock className="w-8 h-8 text-red-400" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-red-100">POS bloqueado: corte de caja pendiente</h2>
+              <p className="text-sm text-red-200/80">
+                El turno actual lleva {diasDesdeAperturaTurno} días abierto sin cierre. Para evitar mezclar ventas
+                de varios días en el mismo corte, no se pueden registrar nuevas órdenes hasta que se realice el
+                corte de caja.
+              </p>
+            </div>
+            <Button
+              onClick={() => router.push('/dashboard')}
+              className="bg-red-500 hover:bg-red-600 text-white font-bold tracking-tight uppercase rounded-xl"
+            >
+              Ir al dashboard a realizar corte
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">

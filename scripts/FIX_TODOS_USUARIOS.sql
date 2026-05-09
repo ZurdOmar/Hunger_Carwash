@@ -22,33 +22,41 @@ RETURNS TABLE (
   email varchar,
   last_sign_in_at timestamptz,
   auth_created_at timestamptz
-) 
+)
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  v_caller_id uuid;
+  v_caller_role text;
 BEGIN
-  -- Verificar si el usuario que llama es ADMIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.perfiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  ) THEN
+  -- Obtener rol del usuario que llama (explícitamente)
+  v_caller_id := auth.uid();
+
+  SELECT perfiles.role INTO v_caller_role
+  FROM public.perfiles
+  WHERE perfiles.id = v_caller_id;
+
+  -- Verificar que sea ADMIN
+  IF v_caller_role IS NULL OR v_caller_role != 'admin' THEN
     RAISE EXCEPTION 'No autorizado: Solo administradores pueden consultar esta lista.';
   END IF;
 
+  -- Devolver datos de usuarios
   RETURN QUERY
   SELECT
-    p.id,
-    p.full_name,
-    p.role,
-    p.activo,
-    p.created_at,
-    COALESCE(u.email, 'sin-email')::varchar as email,
-    u.last_sign_in_at,
-    u.created_at as auth_created_at
-  FROM public.perfiles p
-  LEFT JOIN auth.users u ON p.id = u.id
-  ORDER BY p.created_at DESC;
+    perfiles.id,
+    perfiles.full_name,
+    perfiles.role,
+    perfiles.activo,
+    perfiles.created_at,
+    COALESCE(auth_users.email, 'sin-email')::varchar as email,
+    auth_users.last_sign_in_at,
+    auth_users.created_at as auth_created_at
+  FROM public.perfiles
+  LEFT JOIN auth.users auth_users ON perfiles.id = auth_users.id
+  ORDER BY perfiles.created_at DESC;
 END;
 $$;
 

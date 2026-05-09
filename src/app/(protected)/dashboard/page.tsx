@@ -24,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
-import { abrirTurno, cerrarTurno, getTurnoActivo, type Turno } from "@/lib/turnosService";
+import { abrirTurno, cerrarTurno, getTurnoActivo, getDiasDesdeApertura, type Turno } from "@/lib/turnosService";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -89,17 +89,14 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [user]);
 
-  // Bandera: el turno abierto es de un día anterior → mostrar aviso para corte pendiente.
-  const turnoEsDeDiaAnterior = React.useMemo(() => {
-    if (!turnoActivo?.fecha_apertura) return false;
-    const apertura = new Date(turnoActivo.fecha_apertura);
-    const hoy = new Date();
-    return !(
-      apertura.getFullYear() === hoy.getFullYear() &&
-      apertura.getMonth() === hoy.getMonth() &&
-      apertura.getDate() === hoy.getDate()
-    );
-  }, [turnoActivo]);
+  // Días desde apertura del turno → escalación de severidad del aviso:
+  //   1 día  → banner amarillo (recordatorio)
+  //   2 días → banner rojo (urgente)
+  //   3+ días → bloqueo del POS (gestionado en pos/page.tsx)
+  const diasDesdeApertura = React.useMemo(
+    () => getDiasDesdeApertura(turnoActivo),
+    [turnoActivo]
+  );
 
   const diferencia = montoDeclarado ? parseFloat(montoDeclarado) - cashTotal : 0;
 
@@ -159,24 +156,54 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {turnoEsDeDiaAnterior && turnoActivo?.fecha_apertura && (
+      {diasDesdeApertura >= 1 && turnoActivo?.fecha_apertura && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="px-5 py-4 rounded-xl border border-yellow-500/40 bg-yellow-500/10 flex items-center justify-between gap-4 flex-wrap"
+          className={cn(
+            "px-5 py-4 rounded-xl border flex items-center justify-between gap-4 flex-wrap",
+            diasDesdeApertura >= 2
+              ? "border-red-500/50 bg-red-500/10"
+              : "border-yellow-500/40 bg-yellow-500/10"
+          )}
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-yellow-500/20">
-              <FileText className="w-5 h-5 text-yellow-400" />
+            <div className={cn(
+              "p-2 rounded-lg",
+              diasDesdeApertura >= 2 ? "bg-red-500/20" : "bg-yellow-500/20"
+            )}>
+              <FileText className={cn(
+                "w-5 h-5",
+                diasDesdeApertura >= 2 ? "text-red-400" : "text-yellow-400"
+              )} />
             </div>
             <div>
-              <p className="text-sm font-bold text-yellow-100">Turno pendiente desde {new Date(turnoActivo.fecha_apertura).toLocaleDateString("es-MX")}</p>
-              <p className="text-xs text-yellow-200/70">Realiza el corte de caja con tu conteo físico real para iniciar un turno nuevo.</p>
+              <p className={cn(
+                "text-sm font-bold",
+                diasDesdeApertura >= 2 ? "text-red-100" : "text-yellow-100"
+              )}>
+                {diasDesdeApertura >= 2
+                  ? `URGENTE: corte pendiente desde hace ${diasDesdeApertura} días`
+                  : `Turno pendiente desde ${new Date(turnoActivo.fecha_apertura).toLocaleDateString("es-MX")}`}
+              </p>
+              <p className={cn(
+                "text-xs",
+                diasDesdeApertura >= 2 ? "text-red-200/80" : "text-yellow-200/70"
+              )}>
+                {diasDesdeApertura >= 2
+                  ? "Las ventas de varios días se están acumulando en el mismo turno. Realiza el corte ahora para limpiar la contabilidad."
+                  : "Realiza el corte de caja con tu conteo físico real para iniciar un turno nuevo."}
+              </p>
             </div>
           </div>
           <Button
             onClick={() => setShowCorteModal(true)}
-            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold tracking-tight uppercase rounded-xl"
+            className={cn(
+              "font-bold tracking-tight uppercase rounded-xl",
+              diasDesdeApertura >= 2
+                ? "bg-red-500 hover:bg-red-600 text-white"
+                : "bg-yellow-500 hover:bg-yellow-600 text-black"
+            )}
           >
             Realizar corte ahora
           </Button>

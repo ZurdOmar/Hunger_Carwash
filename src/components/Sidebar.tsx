@@ -188,7 +188,7 @@ export function Sidebar() {
               variant="outline"
               size="sm"
               className="flex-1 justify-center gap-2 text-xs border-white/[0.06] bg-white/[0.02] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-300"
-              onClick={signOut}
+              onClick={() => signOut()}
             >
               <LogOut className="w-3 h-3" />
               Salir

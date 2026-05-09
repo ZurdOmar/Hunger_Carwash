@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Logo } from '@/components/Logo'
-import { AlertCircle, CheckCircle2, Loader, Eye, EyeOff, User } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader, Eye, EyeOff, User, Clock } from 'lucide-react'
 
 type PageMode = 'login' | 'set-password' | 'loading'
 
@@ -39,6 +39,21 @@ export default function LoginPage() {
   const [isBlocked, setIsBlocked] = useState(false)
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null)
   const [fullName, setFullName] = useState('')
+  const [sessionEndedNotice, setSessionEndedNotice] = useState<string | null>(null)
+
+  // Si AuthContext.signOut('inactivity'|'expired') guardó una razón en sessionStorage,
+  // mostramos un aviso amigable arriba del formulario y limpiamos el flag.
+  useEffect(() => {
+    try {
+      const reason = sessionStorage.getItem('session_end_reason')
+      if (reason === 'inactivity') {
+        setSessionEndedNotice('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.')
+      } else if (reason === 'expired') {
+        setSessionEndedNotice('Tu sesión expiró. Vuelve a iniciar sesión para continuar.')
+      }
+      if (reason) sessionStorage.removeItem('session_end_reason')
+    } catch {}
+  }, [])
 
   useEffect(() => {
     const hash = window.location.hash
@@ -442,6 +457,13 @@ export default function LoginPage() {
               </div>
 
               <form onSubmit={handleLogin} className="space-y-5">
+                {sessionEndedNotice && !error && (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <Clock className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <p className="text-sm text-amber-300">{sessionEndedNotice}</p>
+                  </div>
+                )}
+
                 {error && (
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
                     <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />

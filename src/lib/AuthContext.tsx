@@ -17,7 +17,7 @@ interface AuthContextType {
   user: User | null
   profile: UserProfile | null
   loading: boolean
-  signOut: () => void
+  signOut: (reason?: 'inactivity' | 'expired') => void
   getRole: () => string | null
   refreshProfile: () => Promise<void>
 }
@@ -81,12 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback((reason?: 'inactivity' | 'expired') => {
     setUser(null)
     setProfile(null)
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
     if (sessionCheckRef.current) clearInterval(sessionCheckRef.current)
+
+    // Guardar razón del cierre para que la pantalla de login muestre mensaje claro.
+    // sessionStorage se borra al cerrar pestaña → no contamina sesiones futuras.
+    if (reason) {
+      try { sessionStorage.setItem('session_end_reason', reason) } catch {}
+    }
 
     // @supabase/ssr's createBrowserClient stores the session in cookies (chunked
     // as sb-<ref>-auth-token, sb-<ref>-auth-token.0, etc), NOT localStorage.
@@ -139,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCountdown(prev => {
           if (prev <= 1) {
             if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
-            signOut()
+            signOut('inactivity')
             return 0
           }
           return prev - 1
@@ -170,20 +176,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, resetTimer])
 
+  // Validación robusta: getSession() puede devolver null transitoriamente justo
+  // después de un F5 (mientras Supabase hidrata desde cookies) o durante el refresh
+  // interno del token. Si confiásemos en la primera lectura, deslogueariamos por error
+  // a usuarios con sesión válida. La estrategia correcta es:
+  //   1. getSession() devuelve null → no concluir nada todavía.
+  //   2. Intentar refreshSession() — si trae sesión válida, todo bien.
+  //   3. Solo desloguear si refreshSession() también falla.
+  const validateSessionOrSignOut = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) return true
+
+    const { data: refreshed, error } = await supabase.auth.refreshSession()
+    if (refreshed?.session) return true
+
+    // Solo aquí estamos seguros de que la sesión expiró de verdad.
+    console.warn('[AuthContext] sesión expirada confirmada:', error?.message)
+    signOut('expired')
+    return false
+  }, [signOut])
+
   useEffect(() => {
     if (!user) return
 
-    sessionCheckRef.current = setInterval(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        signOut()
-      }
+    sessionCheckRef.current = setInterval(() => {
+      validateSessionOrSignOut()
     }, SESSION_CHECK_MS)
 
     return () => {
       if (sessionCheckRef.current) clearInterval(sessionCheckRef.current)
     }
-  }, [user])
+  }, [user, validateSessionOrSignOut])
+
+  // Cuando el navegador vuelve a estar visible (laptop reabierto), revalida la sesión.
+  // - Solo escuchamos `visibilitychange`, NO `focus`: focus se dispara al volver a la
+  //   pestaña aunque nunca se haya dormido el equipo (p.ej. simplemente cambiando entre
+  //   pestañas), causando revalidaciones innecesarias.
+  // - Debounce de 60s evita disparos en cadena si el evento se repite rápido.
+  // - Usa validateSessionOrSignOut para no desloguear en falsos negativos transitorios.
+  useEffect(() => {
+    if (!user) return
+    let lastCheck = 0
+
+    const checkSessionOnResume = () => {
+      if (document.hidden) return
+      const now = Date.now()
+      if (now - lastCheck < 60_000) return
+      lastCheck = now
+      validateSessionOrSignOut()
+    }
+
+    document.addEventListener('visibilitychange', checkSessionOnResume)
+
+    return () => {
+      document.removeEventListener('visibilitychange', checkSessionOnResume)
+    }
+  }, [user, validateSessionOrSignOut])
 
   const getRole = () => profile?.role || null
 
@@ -235,7 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               </p>
               <div className="flex gap-3">
                 <button
-                  onClick={signOut}
+                  onClick={() => signOut()}
                   className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold border border-white/10 text-muted-foreground hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
                 >
                   <LogOut className="w-4 h-4" />

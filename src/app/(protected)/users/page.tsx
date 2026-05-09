@@ -75,15 +75,26 @@ export default function UsersPage() {
           .rpc('get_todos_usuarios');
 
         if (err) {
-          setError(err.message || 'Error al cargar usuarios');
-          console.error(err);
+          console.error('RPC Error:', err);
+          // Si la función no existe, dar instrucción clara
+          if (err.message?.includes('function')) {
+            setError('⚠️ La RPC no está instalada. Ejecuta el script FIX_TODOS_USUARIOS.sql en Supabase SQL Editor.');
+          } else {
+            setError(`Error: ${err.message || 'Error desconocido al cargar usuarios'}`);
+          }
+          return;
+        }
+
+        if (!data) {
+          setError('La consulta no devolvió datos');
+          console.error('No data returned from RPC');
           return;
         }
 
         setUsuarios((data || []) as Usuario[]);
-      } catch (err) {
-        setError('Error inesperado');
-        console.error(err);
+      } catch (err: any) {
+        console.error('Excepción:', err);
+        setError(`Error inesperado: ${err?.message || 'desconocido'}`);
       } finally {
         setLoading(false);
       }
@@ -145,6 +156,16 @@ export default function UsersPage() {
       setIsSubmitting(false);
     }
   };
+
+  // Mientras AuthContext está cargando, mostrar spinner — evita falso "Acceso Denegado"
+  // por race condition (profile=null antes de que termine la sesión de cargar).
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   // Protección: solo admin puede ver esta página (DEBE IR DESPUÉS DE LOS HOOKS)
   if (profile?.role !== 'admin') {
