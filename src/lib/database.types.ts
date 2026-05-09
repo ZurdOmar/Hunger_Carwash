@@ -460,6 +460,20 @@ export type Database = {
           auth_created_at: string
         }[]
       }
+      admin_update_user: {
+        Args: {
+          p_user_id: string
+          p_full_name?: string | null
+          p_role?: 'admin' | 'supervisor' | 'cajero' | null
+          p_activo?: boolean | null
+        }
+        Returns: {
+          id: string
+          full_name: string | null
+          role: 'admin' | 'supervisor' | 'cajero'
+          activo: boolean
+        }
+      }
     }
     Enums: {
       estado_membresia: "Activa" | "Cancelada" | "Vencida"

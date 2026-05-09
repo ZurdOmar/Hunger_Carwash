@@ -227,106 +227,94 @@ export async function updateVehicleSizePriceAction(
 }
 
 /**
+ * Wrapper interno: invoca la RPC SECURITY DEFINER `admin_update_user`.
+ * La función SQL bypasea RLS y valida internamente que el caller sea admin.
+ * Devolver el row actualizado permite que el cliente confirme la escritura.
+ *
+ * NULL en cualquier parámetro = "no cambiar ese campo".
+ */
+async function callAdminUpdateUser(args: {
+  userId: string;
+  fullName?: string;
+  role?: 'admin' | 'supervisor' | 'cajero';
+  activo?: boolean;
+}) {
+  if (!args.userId || !/^[0-9a-f-]{36}$/i.test(args.userId)) {
+    throw new Error('ID de usuario inválido');
+  }
+
+  const supabase = await createServerSupabaseClient();
+
+  const { data, error } = await supabase.rpc('admin_update_user', {
+    p_user_id: args.userId,
+    p_full_name: args.fullName ?? null,
+    p_role: args.role ?? null,
+    p_activo: args.activo ?? null,
+  });
+
+  if (error) {
+    // Las excepciones SQL llegan aquí con `message` ya legible (en español).
+    throw new Error(error.message || 'Error al actualizar usuario');
+  }
+
+  // La RPC devuelve un JSON con la fila modificada; si no, algo silencioso falló.
+  if (!data) {
+    throw new Error('La actualización no afectó ningún registro');
+  }
+
+  return data as {
+    id: string;
+    full_name: string | null;
+    role: 'admin' | 'supervisor' | 'cajero';
+    activo: boolean;
+  };
+}
+
+/**
  * Cambiar rol de usuario
- * Solo admin puede cambiar roles
+ * Solo admin puede cambiar roles (validado en SQL)
  */
 export async function changeUserRoleAction(
   userId: string,
   newRole: 'admin' | 'supervisor' | 'cajero'
 ) {
-  const supabase = await createServerSupabaseClient();
-
-  // Validar autenticación
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    throw new Error('No autenticado');
-  }
-
-  // Validar rol - SOLO ADMIN
-  const { data: profile } = await supabase
-    .from('perfiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single();
-
-  if (!profile || profile.role !== 'admin') {
-    throw new Error('Solo administradores pueden cambiar roles');
-  }
-
-  // Validar userId es UUID válido
-  if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) {
-    throw new Error('ID de usuario inválido');
-  }
-
-  // Validar nuevo rol
   if (!['admin', 'supervisor', 'cajero'].includes(newRole)) {
     throw new Error('Rol inválido');
   }
-
-  // Validar que no intente cambiar su propio rol
-  if (userId === session.user.id) {
-    throw new Error('No puedes cambiar tu propio rol');
-  }
-
-  // Ejecutar actualización
-  const { error } = await supabase
-    .from('perfiles')
-    .update({ role: newRole })
-    .eq('id', userId);
-
-  if (error) {
-    throw new Error('Error al cambiar rol de usuario');
-  }
-
-  return { success: true };
+  const updated = await callAdminUpdateUser({ userId, role: newRole });
+  return { success: true, user: updated };
 }
 
 /**
  * Activar/Desactivar usuario
- * Solo admin puede desactivar usuarios
+ * Solo admin puede desactivar usuarios (validado en SQL)
  */
 export async function toggleUserActiveAction(
   userId: string,
   activo: boolean
 ) {
-  const supabase = await createServerSupabaseClient();
+  const updated = await callAdminUpdateUser({ userId, activo });
+  return { success: true, user: updated };
+}
 
-  // Validar autenticación
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    throw new Error('No autenticado');
+/**
+ * Cambiar nombre completo de un usuario
+ * Solo admin puede modificarlo desde el panel (validado en SQL)
+ */
+export async function updateUserFullNameAction(
+  userId: string,
+  fullName: string
+) {
+  if (typeof fullName !== 'string') {
+    throw new Error('Nombre inválido');
   }
-
-  // Validar rol - SOLO ADMIN
-  const { data: profile } = await supabase
-    .from('perfiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single();
-
-  if (!profile || profile.role !== 'admin') {
-    throw new Error('Solo administradores pueden desactivar usuarios');
+  const trimmed = fullName.trim();
+  if (trimmed.length === 0) {
+    throw new Error('El nombre no puede estar vacío');
   }
-
-  // Validar userId es UUID válido
-  if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) {
-    throw new Error('ID de usuario inválido');
+  if (trimmed.length > 100) {
+    throw new Error('El nombre es demasiado largo (máx 100 caracteres)');
   }
-
-  // Validar que no intente desactivarse a sí mismo
-  if (userId === session.user.id && !activo) {
-    throw new Error('No puedes desactivar tu propia cuenta');
-  }
-
-  // Ejecutar actualización
-  const { error } = await supabase
-    .from('perfiles')
-    .update({ activo })
-    .eq('id', userId);
-
-  if (error) {
-    throw new Error('Error al actualizar estado del usuario');
-  }
-
-  return { success: true };
+  const updated = await callAdminUpdateUser({ userId, fullName: trimmed });
+  return { success: true, user: updated };
 }

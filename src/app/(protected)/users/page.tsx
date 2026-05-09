@@ -16,11 +16,12 @@ import {
   AlertCircle,
   Loader,
   Eye,
-  EyeOff
+  EyeOff,
+  Pencil
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
-import { changeUserRoleAction, toggleUserActiveAction } from "@/app/actions";
+import { changeUserRoleAction, toggleUserActiveAction, updateUserFullNameAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
 
 type Usuario = {
@@ -52,6 +53,8 @@ export default function UsersPage() {
   const [error, setError] = React.useState('');
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [newRole, setNewRole] = React.useState<'admin' | 'supervisor' | 'cajero'>('cajero');
+  const [editingNameId, setEditingNameId] = React.useState<string | null>(null);
+  const [newName, setNewName] = React.useState<string>('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState('');
 
@@ -91,9 +94,11 @@ export default function UsersPage() {
 
   const handleChangeRole = async (userId: string, role: 'admin' | 'supervisor' | 'cajero') => {
     setIsSubmitting(true);
+    setError('');
     try {
-      await changeUserRoleAction(userId, role);
-      setUsuarios(usuarios.map(u => u.id === userId ? { ...u, role } : u));
+      const res = await changeUserRoleAction(userId, role);
+      // Confiamos en la fila devuelta por el servidor — refleja el estado real en BD.
+      setUsuarios(usuarios.map(u => u.id === userId ? { ...u, role: res.user.role } : u));
       setEditingId(null);
       setSuccessMessage('Rol actualizado correctamente');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -104,11 +109,34 @@ export default function UsersPage() {
     }
   };
 
+  const handleChangeName = async (userId: string, fullName: string) => {
+    const trimmed = fullName.trim();
+    if (!trimmed) {
+      setError('El nombre no puede estar vacío');
+      return;
+    }
+    setIsSubmitting(true);
+    setError('');
+    try {
+      const res = await updateUserFullNameAction(userId, trimmed);
+      setUsuarios(usuarios.map(u => u.id === userId ? { ...u, full_name: res.user.full_name } : u));
+      setEditingNameId(null);
+      setNewName('');
+      setSuccessMessage('Nombre actualizado correctamente');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Error al cambiar nombre');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleToggleActive = async (userId: string, activo: boolean) => {
     setIsSubmitting(true);
+    setError('');
     try {
-      await toggleUserActiveAction(userId, !activo);
-      setUsuarios(usuarios.map(u => u.id === userId ? { ...u, activo: !activo } : u));
+      const res = await toggleUserActiveAction(userId, !activo);
+      setUsuarios(usuarios.map(u => u.id === userId ? { ...u, activo: res.user.activo } : u));
       setSuccessMessage(activo ? 'Usuario desactivado' : 'Usuario activado');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err: any) {
@@ -211,9 +239,52 @@ export default function UsersPage() {
                       )}
                     >
                       <td className="py-4 px-4">
-                        <div>
-                          <p className="font-medium">{usuario.full_name || 'Sin nombre'}</p>
-                        </div>
+                        {editingNameId === usuario.id ? (
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              value={newName}
+                              onChange={(e) => setNewName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleChangeName(usuario.id, newName);
+                                if (e.key === 'Escape') { setEditingNameId(null); setNewName(''); }
+                              }}
+                              maxLength={100}
+                              autoFocus
+                              disabled={isSubmitting}
+                              className="h-8 text-sm w-44"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleChangeName(usuario.id, newName)}
+                              disabled={isSubmitting}
+                              title="Guardar nombre"
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => { setEditingNameId(null); setNewName(''); }}
+                              disabled={isSubmitting}
+                              title="Cancelar"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingNameId(usuario.id);
+                              setNewName(usuario.full_name || '');
+                            }}
+                            className="group flex items-center gap-2 font-medium hover:text-primary transition-colors text-left"
+                            title="Editar nombre"
+                          >
+                            <span>{usuario.full_name || 'Sin nombre'}</span>
+                            <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          </button>
+                        )}
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
