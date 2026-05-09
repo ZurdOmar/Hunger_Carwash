@@ -59,9 +59,11 @@ export default function DashboardPage() {
   const cardTotal = activeOrders.filter(o => o.paymentMethod === 'Tarjeta').reduce((acc, curr) => acc + curr.total, 0);
   const memberTotal = activeOrders.filter(o => o.paymentMethod === 'Membresía').reduce((acc, curr) => acc + curr.total, 0);
 
-  // Garantiza un turno abierto DEL DÍA para la sucursal matriz al cargar el dashboard.
-  // Si el turno abierto es de un día anterior, lo cierra con el efectivo del sistema
-  // y abre uno nuevo para hoy (evita que cortes crucen días).
+  // Carga el turno abierto de la sucursal matriz. Si NO hay ninguno, abre uno
+  // nuevo (defensivo). NUNCA cierra automáticamente turnos del día anterior:
+  // hacerlo destruye los datos del corte (el cajero debe contar el efectivo
+  // físico manualmente). Si el turno abierto es de un día anterior, se muestra
+  // tal cual y la UI avisa con un banner para que el cajero haga el corte.
   React.useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -73,47 +75,31 @@ export default function DashboardPage() {
         .single();
       if (!matriz || cancelled) return;
 
-      const activo = await getTurnoActivo(matriz.id);
-      if (activo?.fecha_apertura) {
-        const apertura = new Date(activo.fecha_apertura);
-        const hoy = new Date();
-        const mismoDia =
-          apertura.getFullYear() === hoy.getFullYear() &&
-          apertura.getMonth() === hoy.getMonth() &&
-          apertura.getDate() === hoy.getDate();
-        if (mismoDia) {
-          if (!cancelled) setTurnoActivo(activo);
-          return;
-        }
-        try {
-          const { data: ords } = await supabase
-            .from('ordenes_servicio')
-            .select('total, metodo_pago, created_at')
-            .eq('turno_id', activo.id);
-          const inicio = new Date(activo.fecha_apertura).getTime();
-          const fin = inicio + 24 * 60 * 60 * 1000;
-          const efectivoSistema = (ords || [])
-            .filter((o: any) => {
-              if (o.metodo_pago !== 'Efectivo') return false;
-              if (!o.created_at) return true;
-              const t = new Date(o.created_at).getTime();
-              return t >= inicio && t < fin;
-            })
-            .reduce((s: number, o: any) => s + (o.total || 0), 0);
-          await cerrarTurno(activo.id, efectivoSistema, efectivoSistema);
-        } catch (e) {
-          console.error('No se pudo cerrar turno del día anterior:', e);
-        }
+      let activo = await getTurnoActivo(matriz.id);
+
+      if (!activo) {
+        const nuevoId = await abrirTurno(matriz.id, user.id, 0);
+        if (!nuevoId || cancelled) return;
+        activo = await getTurnoActivo(matriz.id);
       }
 
-      const nuevoId = await abrirTurno(matriz.id, user.id, 0);
-      if (!nuevoId || cancelled) return;
-      const recien = await getTurnoActivo(matriz.id);
-      if (!cancelled) setTurnoActivo(recien);
+      if (!cancelled) setTurnoActivo(activo);
     };
     ensureTurno();
     return () => { cancelled = true; };
   }, [user]);
+
+  // Bandera: el turno abierto es de un día anterior → mostrar aviso para corte pendiente.
+  const turnoEsDeDiaAnterior = React.useMemo(() => {
+    if (!turnoActivo?.fecha_apertura) return false;
+    const apertura = new Date(turnoActivo.fecha_apertura);
+    const hoy = new Date();
+    return !(
+      apertura.getFullYear() === hoy.getFullYear() &&
+      apertura.getMonth() === hoy.getMonth() &&
+      apertura.getDate() === hoy.getDate()
+    );
+  }, [turnoActivo]);
 
   const diferencia = montoDeclarado ? parseFloat(montoDeclarado) - cashTotal : 0;
 
@@ -172,6 +158,30 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {turnoEsDeDiaAnterior && turnoActivo?.fecha_apertura && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="px-5 py-4 rounded-xl border border-yellow-500/40 bg-yellow-500/10 flex items-center justify-between gap-4 flex-wrap"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-yellow-500/20">
+              <FileText className="w-5 h-5 text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-yellow-100">Turno pendiente desde {new Date(turnoActivo.fecha_apertura).toLocaleDateString("es-MX")}</p>
+              <p className="text-xs text-yellow-200/70">Realiza el corte de caja con tu conteo físico real para iniciar un turno nuevo.</p>
+            </div>
+          </div>
+          <Button
+            onClick={() => setShowCorteModal(true)}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold tracking-tight uppercase rounded-xl"
+          >
+            Realizar corte ahora
+          </Button>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {realStats.map((stat, i) => (
