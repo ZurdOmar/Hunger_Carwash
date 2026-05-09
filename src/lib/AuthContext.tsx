@@ -59,12 +59,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user || null)
 
         if (session?.user) {
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from('perfiles')
             .select('id, full_name, role')
             .eq('id', session.user.id)
             .single()
 
+          if (profileError) console.error('[AuthContext] profile fetch error:', profileError)
           if (profileData) {
             setProfile(profileData as UserProfile)
           }
@@ -83,12 +84,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user || null)
 
         if (session?.user) {
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from('perfiles')
             .select('id, full_name, role')
             .eq('id', session.user.id)
             .single()
 
+          if (profileError) console.error('[AuthContext] onAuthStateChange profile fetch error:', profileError)
           if (profileData) {
             setProfile(profileData as UserProfile)
           }

@@ -46,7 +46,7 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [usuarios, setUsuarios] = React.useState<Usuario[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
@@ -59,8 +59,10 @@ export default function UsersPage() {
 
   // Cargar usuarios
   React.useEffect(() => {
-    // Si no es admin, no cargar (el return temprano principal está abajo)
-    if (profile?.role !== 'admin') return;
+    // Esperar a que AuthContext termine de inicializar
+    if (authLoading) return;
+    // Si no es admin, detener el spinner (el guard de rol de abajo mostrará el mensaje)
+    if (profile?.role !== 'admin') { setLoading(false); return; }
 
     const loadUsuarios = async () => {
       setLoading(true);
@@ -85,7 +87,7 @@ export default function UsersPage() {
     };
 
     loadUsuarios();
-  }, [profile?.role]);
+  }, [authLoading, profile?.role]);
 
   const handleChangeRole = async (userId: string, role: 'admin' | 'supervisor' | 'cajero') => {
     setIsSubmitting(true);
