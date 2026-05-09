@@ -17,8 +17,9 @@ interface AuthContextType {
   user: User | null
   profile: UserProfile | null
   loading: boolean
-  signOut: () => Promise<void>
+  signOut: () => void
   getRole: () => string | null
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -101,24 +102,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription?.unsubscribe()
   }, [])
 
-  const signOut = async () => {
+  const signOut = useCallback(() => {
     setUser(null)
     setProfile(null)
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
     if (sessionCheckRef.current) clearInterval(sessionCheckRef.current)
-    // Clear session from localStorage directly — no SDK call, no navigator.lock acquired.
-    // This avoids blocking on a hung token-refresh that may be holding the lock.
-    // Tokens expire naturally; for a higher-security app, add a background server revocation.
+
+    // Read the access token BEFORE clearing storage.
+    let accessToken: string | undefined
+    try {
+      accessToken = Object.keys(localStorage)
+        .filter(k => k.startsWith('sb-'))
+        .map(k => { try { return JSON.parse(localStorage.getItem(k) || '{}') } catch { return {} } })
+        .find(v => v?.access_token)?.access_token
+    } catch {}
+
+    // Clear tokens synchronously so a racing background refresh can't re-save them.
     try {
       for (const k of Object.keys(localStorage)) {
         if (k.startsWith('sb-')) localStorage.removeItem(k)
       }
     } catch {}
+
+    // Fire-and-forget server revocation — no await so signOut never hangs.
+    if (accessToken) {
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        },
+      }).catch(() => {})
+    }
+
     // Hard reload destroys the current JS context (releases any pending locks)
     // and boots a clean Supabase client on the login page.
     window.location.href = '/login'
-  }
+  // All dependencies (setUser, setProfile, refs) are stable — empty dep array is correct.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const resetTimer = useCallback(() => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
@@ -142,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
       }, 1000)
     }, INACTIVITY_MS - WARNING_BEFORE_MS)
-  }, [user, signOut])
+  }, [user])
 
   const extendSession = () => {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
@@ -179,9 +202,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (sessionCheckRef.current) clearInterval(sessionCheckRef.current)
     }
-  }, [user, signOut])
+  }, [user])
 
   const getRole = () => profile?.role || null
+
+  const refreshProfile = async () => {
+    if (!user) return
+    const { data } = await supabase
+      .from('perfiles')
+      .select('id, full_name, role')
+      .eq('id', user.id)
+      .single()
+    if (data) setProfile(data as UserProfile)
+  }
 
   const value: AuthContextType = {
     user,
@@ -189,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signOut,
     getRole,
+    refreshProfile,
   }
 
   return (
