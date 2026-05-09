@@ -88,32 +88,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
     if (sessionCheckRef.current) clearInterval(sessionCheckRef.current)
 
-    // Read the access token BEFORE clearing storage.
-    let accessToken: string | undefined
+    // @supabase/ssr's createBrowserClient stores the session in cookies (chunked
+    // as sb-<ref>-auth-token, sb-<ref>-auth-token.0, etc), NOT localStorage.
+    // We must wipe these cookies; otherwise the login page's getSession()
+    // restores the session and redirects right back to /pos.
     try {
-      accessToken = Object.keys(localStorage)
-        .filter(k => k.startsWith('sb-'))
-        .map(k => { try { return JSON.parse(localStorage.getItem(k) || '{}') } catch { return {} } })
-        .find(v => v?.access_token)?.access_token
+      const host = window.location.hostname
+      const past = 'Thu, 01 Jan 1970 00:00:00 GMT'
+      const cookieNames = document.cookie
+        .split(';')
+        .map(c => c.split('=')[0].trim())
+        .filter(name => name.startsWith('sb-'))
+
+      for (const name of cookieNames) {
+        // Try every plausible attribute combo — browsers only delete a cookie
+        // when the path/domain match the original Set-Cookie exactly.
+        document.cookie = `${name}=; expires=${past}; path=/`
+        document.cookie = `${name}=; expires=${past}; path=/; domain=${host}`
+        document.cookie = `${name}=; expires=${past}; path=/; domain=.${host}`
+      }
     } catch {}
 
-    // Clear tokens synchronously so a racing background refresh can't re-save them.
+    // Belt-and-suspenders: clear any legacy localStorage entries from older
+    // builds that used the default supabase-js storage.
     try {
       for (const k of Object.keys(localStorage)) {
         if (k.startsWith('sb-')) localStorage.removeItem(k)
       }
     } catch {}
-
-    // Fire-and-forget server revocation — no await so signOut never hangs.
-    if (accessToken) {
-      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        },
-      }).catch(() => {})
-    }
 
     // Hard reload destroys the current JS context (releases any pending locks)
     // and boots a clean Supabase client on the login page.
