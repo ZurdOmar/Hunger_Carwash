@@ -166,21 +166,23 @@ export function Sidebar() {
         <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mx-3" />
 
         <div className="space-y-3 px-3 pb-4">
-          <div className="glass-premium p-3 space-y-1">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20 shrink-0">
-                {(profile?.full_name || 'U').charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground text-sm truncate leading-tight">
-                  {profile ? (profile.full_name || `(${profile.role})`) : 'Cargando…'}
-                </p>
-                <p className="text-muted-foreground uppercase tracking-[0.15em] text-[9px] font-bold">
-                  {profile?.role || '—'}
-                </p>
+          <Link href="/profile">
+            <div className="glass-premium p-3 space-y-1 hover:bg-white/[0.04] transition-colors rounded-xl cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20 shrink-0">
+                  {(profile?.full_name || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-foreground text-sm truncate leading-tight">
+                    {profile ? (profile.full_name || `(${profile.role})`) : 'Cargando…'}
+                  </p>
+                  <p className="text-muted-foreground uppercase tracking-[0.15em] text-[9px] font-bold">
+                    {profile?.role || '—'}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
           <div className="flex items-stretch gap-2">
             <Button
               variant="outline"

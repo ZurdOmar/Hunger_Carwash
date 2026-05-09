@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
+import { AuthGuard } from "@/components/AuthGuard";
 import { cn } from "@/lib/utils";
 
 export default function ProtectedLayout({
@@ -8,6 +9,7 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }>) {
   return (
+    <AuthGuard>
     <div className="flex h-screen w-full relative overflow-hidden">
       {/* Ambient glow — top right */}
       <div className="absolute top-[-200px] right-[-100px] w-[600px] h-[600px]
@@ -35,5 +37,6 @@ export default function ProtectedLayout({
         </div>
       </main>
     </div>
+    </AuthGuard>
   );
 }
