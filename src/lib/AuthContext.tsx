@@ -45,39 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (initialized.current) return
     initialized.current = true
 
-    const initializeAuth = async () => {
-      try {
-        // Race against 6 s: if getSession blocks on a hung token-refresh
-        // (expired token + unresponsive network), we still unblock the UI.
-        const result = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise<{ data: { session: null } }>(resolve =>
-            setTimeout(() => resolve({ data: { session: null } }), 6000)
-          ),
-        ])
-        const session = result.data.session
-        setUser(session?.user || null)
-
-        if (session?.user) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('perfiles')
-            .select('id, full_name, role')
-            .eq('id', session.user.id)
-            .single()
-
-          if (profileError) console.error('[AuthContext] profile fetch error:', profileError)
-          if (profileData) {
-            setProfile(profileData as UserProfile)
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    initializeAuth()
+    // onAuthStateChange fires INITIAL_SESSION when the listener is registered.
+    // We rely on that event to set the initial auth state and unblock loading.
+    // A 12-second fallback covers the edge case where the SDK hangs entirely.
+    const fallback = setTimeout(() => setLoading(false), 12000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -90,18 +61,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', session.user.id)
             .single()
 
-          if (profileError) console.error('[AuthContext] onAuthStateChange profile fetch error:', profileError)
-          if (profileData) {
-            setProfile(profileData as UserProfile)
-          }
+          if (profileError) console.error('[AuthContext] profile fetch error:', profileError)
+          if (profileData) setProfile(profileData as UserProfile)
         } else {
           setProfile(null)
         }
 
+        // Unblock the UI after the initial auth state is known.
+        if (event === 'INITIAL_SESSION') {
+          clearTimeout(fallback)
+          setLoading(false)
+        }
       }
     )
 
-    return () => subscription?.unsubscribe()
+    return () => {
+      subscription?.unsubscribe()
+      clearTimeout(fallback)
+    }
   }, [])
 
   const signOut = useCallback(() => {

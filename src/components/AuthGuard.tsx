@@ -14,7 +14,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router])
 
-  if (loading) {
+  // Show spinner while loading OR while user is null (redirect is in-flight via useEffect).
+  // Never return null — that produces a black screen if the session check races.
+  if (loading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -24,8 +26,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       </div>
     )
   }
-
-  if (!user) return null
 
   return <>{children}</>
 }
