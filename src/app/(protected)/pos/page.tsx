@@ -254,15 +254,21 @@ export default function POSPage() {
         }
 
         if (vehId) {
-            // Obtener matriz para tener un sucursal_id válido
-            const { data: matriz, error: matrizErr } = await supabase.from('sucursales').select('id').eq('es_matriz', true).single();
+            // Obtener matriz. Traemos fondo_caja_default para abrir el turno
+            // con el fondo configurado por el admin (en lugar de hardcodear 0).
+            const { data: matriz, error: matrizErr } = await supabase
+                .from('sucursales')
+                .select('id, fondo_caja_default')
+                .eq('es_matriz', true)
+                .single();
             if (matrizErr) throw matrizErr;
             if (matriz) {
                 let turnoActivo = await getTurnoActivo(matriz.id);
 
                 // Auto-abrir turno si no existe
                 if (!turnoActivo && user) {
-                    const nuevoTurnoId = await abrirTurno(matriz.id, user.id, 0);
+                    const fondoInicial = Number(matriz.fondo_caja_default ?? 0);
+                    const nuevoTurnoId = await abrirTurno(matriz.id, user.id, fondoInicial);
                     if (nuevoTurnoId) {
                         turnoActivo = await getTurnoActivo(matriz.id);
                     }

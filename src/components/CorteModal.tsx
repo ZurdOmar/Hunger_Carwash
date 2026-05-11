@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Heading } from './ui/Heading'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card'
@@ -9,7 +9,7 @@ import { Input } from './ui/Input'
 import { Badge } from './ui/Badge'
 import { DollarSign, FileText, Download, AlertCircle, Loader } from 'lucide-react'
 import type { Order } from '@/lib/types'
-import { generarCSVCorte, descargarCSV, cerrarTurno } from '@/lib/turnosService'
+import { generarCSVCorte, descargarCSV, cerrarTurno, getOrdenesByTurno } from '@/lib/turnosService'
 import { toast } from 'sonner'
 
 interface CorteModalProps {
@@ -23,17 +23,39 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
   const [montoDeclarado, setMontoDeclarado] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Órdenes reales del turno (incluye 'Entregado', que ConfigContext.orders excluye).
+  // Sin esto, totalSistema siempre quedaba en 0 cuando el cajero ya había movido
+  // todas las órdenes a Entregado durante el día.
+  const [ordersForCorte, setOrdersForCorte] = useState<Order[]>(orders)
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (!turnoId) {
+      setOrdersForCorte(orders)
+      return
+    }
+    let cancelled = false
+    setIsLoadingOrders(true)
+    ;(async () => {
+      const real = await getOrdenesByTurno(turnoId)
+      if (cancelled) return
+      setOrdersForCorte(real)
+      setIsLoadingOrders(false)
+    })()
+    return () => { cancelled = true }
+  }, [isOpen, turnoId, orders])
 
   // Calcular totales
-  const efectivoTotal = orders
+  const efectivoTotal = ordersForCorte
     .filter((o) => o.paymentMethod === 'Efectivo')
     .reduce((sum, o) => sum + o.total, 0)
 
-  const tarjetaTotal = orders
+  const tarjetaTotal = ordersForCorte
     .filter((o) => o.paymentMethod === 'Tarjeta')
     .reduce((sum, o) => sum + o.total, 0)
 
-  const membresiaTotl = orders
+  const membresiaTotl = ordersForCorte
     .filter((o) => o.paymentMethod === 'Membresía')
     .reduce((sum, o) => sum + o.total, 0)
 
@@ -54,7 +76,7 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
       estado: 'abierto',
     }
 
-    const csv = generarCSVCorte(orders, turno)
+    const csv = generarCSVCorte(ordersForCorte, turno)
     const fecha = new Date().toISOString().split('T')[0]
     descargarCSV(csv, `corte-caja-${fecha}.csv`)
   }
@@ -203,9 +225,9 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
                   <Button
                     className="gap-2"
                     onClick={handleFinalizarTurno}
-                    disabled={isProcessing || !montoDeclarado}
+                    disabled={isProcessing || isLoadingOrders || !montoDeclarado}
                   >
-                    {isProcessing ? (
+                    {isProcessing || isLoadingOrders ? (
                       <Loader className="w-4 h-4 animate-spin" />
                     ) : (
                       <FileText className="w-4 h-4" />

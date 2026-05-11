@@ -331,6 +331,7 @@ export type Database = {
           descripcion: string | null
           direccion: string | null
           es_matriz: boolean | null
+          fondo_caja_default: number
           id: string
           nombre: string
           telefono: string | null
@@ -341,6 +342,7 @@ export type Database = {
           descripcion?: string | null
           direccion?: string | null
           es_matriz?: boolean | null
+          fondo_caja_default?: number
           id?: string
           nombre: string
           telefono?: string | null
@@ -351,6 +353,7 @@ export type Database = {
           descripcion?: string | null
           direccion?: string | null
           es_matriz?: boolean | null
+          fondo_caja_default?: number
           id?: string
           nombre?: string
           telefono?: string | null

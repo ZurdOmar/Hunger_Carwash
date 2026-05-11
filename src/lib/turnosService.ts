@@ -102,6 +102,43 @@ export function getDiasDesdeApertura(turno: Turno | null): number {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)))
 }
 
+// Carga TODAS las órdenes asociadas a un turno, sin filtrar por estado.
+// ConfigContext.orders excluye 'Entregado' (Kanban operativo), por lo que el
+// corte de caja debe consultar Supabase directamente o quedaría en 0.
+export async function getOrdenesByTurno(turnoId: string): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from('ordenes_servicio')
+    .select('*, vehiculos(*)')
+    .eq('turno_id', turnoId)
+
+  if (error) {
+    console.error('Error obteniendo órdenes del turno:', error)
+    return []
+  }
+
+  return (data || []).map((o: any) => ({
+    id: o.id,
+    folio: `${o.folio}`,
+    vehicle: {
+      placa: o.vehiculos?.placa || '',
+      brand: o.vehiculos?.marca || '',
+      model: o.vehiculos?.modelo || '',
+      size: (o.vehiculos?.tamano || 'Carro Chico') as any,
+    },
+    services: o.servicios || [],
+    isPremium: o.es_premium || false,
+    basePrice: o.total || 0,
+    premiumPrice: o.premium_extra_cost || 0,
+    total: o.total || 0,
+    status: o.estado,
+    washerId: o.lavador_id || undefined,
+    bayNumber: o.cajon_id || undefined,
+    createdAt: o.created_at || new Date().toISOString(),
+    paymentMethod: o.metodo_pago || undefined,
+    turnoId: o.turno_id || undefined,
+  }))
+}
+
 export async function getHistorialCortes(sucursalId: string): Promise<Turno[]> {
   try {
     const { data, error } = await supabase

@@ -26,6 +26,8 @@ import {
 import { useConfig } from "@/lib/ConfigContext";
 import { cn } from "@/lib/utils";
 import { downloadDatabaseBackup } from "@/lib/backupService";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const { 
@@ -43,6 +45,53 @@ export default function SettingsPage() {
   const [isBackingUp, setIsBackingUp] = React.useState(false);
   const [backupProgress, setBackupProgress] = React.useState({ percentage: 0, currentTable: "" });
   const [backupError, setBackupError] = React.useState("");
+
+  // Fondo de caja default de la sucursal matriz. Cuando se auto-abre un turno
+  // (POS o Dashboard sin turno activo), este es el monto_inicial que se usa.
+  const [fondoCaja, setFondoCaja] = React.useState<string>("");
+  const [fondoCajaLoading, setFondoCajaLoading] = React.useState(true);
+  const [fondoCajaSaving, setFondoCajaSaving] = React.useState(false);
+  const [matrizId, setMatrizId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("sucursales")
+        .select("id, fondo_caja_default")
+        .eq("es_matriz", true)
+        .single();
+      if (cancelled) return;
+      if (error || !data) {
+        setFondoCajaLoading(false);
+        return;
+      }
+      setMatrizId(data.id);
+      setFondoCaja(String(Number(data.fondo_caja_default ?? 0)));
+      setFondoCajaLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleSaveFondoCaja = async () => {
+    if (!matrizId) return;
+    const valor = Number(fondoCaja);
+    if (!Number.isFinite(valor) || valor < 0) {
+      toast.error("Ingresa un monto válido (≥ 0)");
+      return;
+    }
+    setFondoCajaSaving(true);
+    const { error } = await supabase
+      .from("sucursales")
+      .update({ fondo_caja_default: valor })
+      .eq("id", matrizId);
+    setFondoCajaSaving(false);
+    if (error) {
+      toast.error("No se pudo guardar el fondo de caja");
+      return;
+    }
+    toast.success("Fondo de caja actualizado");
+  };
 
   const handleAddType = () => {
     if(newTypeName && newTypePrice) { 
@@ -162,6 +211,50 @@ export default function SettingsPage() {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* FONDO DE CAJA DEFAULT */}
+      <Card className="glass border-amber-500/20 shadow-2xl overflow-hidden group bg-gradient-to-r from-amber-500/5 to-transparent">
+        <CardHeader className="bg-amber-500/10 border-b border-amber-500/10 py-8 px-8">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400">
+              <DollarSign className="w-6 h-6" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-black italic uppercase tracking-tighter">Fondo de Caja</CardTitle>
+              <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-amber-400/70">
+                Monto inicial con el que se abre cada turno automáticamente
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-8">
+          <div className="bg-white/5 p-4 rounded-xl border border-amber-500/20 mb-6">
+            <p className="text-[10px] font-bold text-amber-400 italic uppercase leading-tight">
+              Este monto se usa como fondo inicial cuando el sistema abre un turno nuevo (al primer cobro del día o al entrar al dashboard sin turno activo). El cajero ya no podrá olvidar registrarlo.
+            </p>
+          </div>
+          <div className="flex items-end gap-4">
+            <div className="flex-1 space-y-2">
+              <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Monto Inicial $</label>
+              <Input
+                type="number"
+                placeholder="Ej: 500"
+                value={fondoCaja}
+                onChange={(e) => setFondoCaja(e.target.value)}
+                disabled={fondoCajaLoading || fondoCajaSaving}
+                className="h-12 text-sm font-bold bg-background/50 border-amber-500/20 tracking-widest"
+              />
+            </div>
+            <Button
+              onClick={handleSaveFondoCaja}
+              disabled={fondoCajaLoading || fondoCajaSaving || !matrizId}
+              className="h-12 px-8 font-black uppercase bg-amber-500 text-black hover:bg-amber-400 flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+            >
+              {fondoCajaSaving ? "Guardando…" : "Guardar"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

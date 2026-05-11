@@ -68,9 +68,11 @@ export default function DashboardPage() {
     if (!user) return;
     let cancelled = false;
     const ensureTurno = async () => {
+      // fondo_caja_default permite que el turno auto-abierto arranque con el
+      // fondo real configurado por el admin (antes era 0 → corte salía mal).
       const { data: matriz } = await supabase
         .from("sucursales")
-        .select("id")
+        .select("id, fondo_caja_default")
         .eq("es_matriz", true)
         .single();
       if (!matriz || cancelled) return;
@@ -78,7 +80,8 @@ export default function DashboardPage() {
       let activo = await getTurnoActivo(matriz.id);
 
       if (!activo) {
-        const nuevoId = await abrirTurno(matriz.id, user.id, 0);
+        const fondoInicial = Number(matriz.fondo_caja_default ?? 0);
+        const nuevoId = await abrirTurno(matriz.id, user.id, fondoInicial);
         if (!nuevoId || cancelled) return;
         activo = await getTurnoActivo(matriz.id);
       }
