@@ -24,9 +24,10 @@ import {
 import { cn } from "@/lib/utils";
 import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
-import { abrirTurno, cerrarTurno, getTurnoActivo, getDiasDesdeApertura, type Turno } from "@/lib/turnosService";
+import { abrirTurno, cerrarTurno, getTurnoActivo, getDiasDesdeApertura, getOrdenesByTurno, type Turno } from "@/lib/turnosService";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import type { Order } from "@/lib/types";
 
 const stats = [
   { label: "Ingresos Hoy", value: "$4,250", change: "+12.5%", icon: DollarSign, trend: "up" },
@@ -47,11 +48,22 @@ export default function DashboardPage() {
   const [corteError, setCorteError] = React.useState<string | null>(null);
   const [turnoCerrado, setTurnoCerrado] = React.useState<Turno | null>(null);
 
-  // Cálculos reales de órdenes filtradas por el turno activo
-  const activeOrders = React.useMemo(() => {
-    if (!turnoActivo) return [];
-    return orders.filter(o => o.turnoId === turnoActivo.id);
-  }, [orders, turnoActivo]);
+  // Órdenes del turno activo — consultadas directo a Supabase (no a ConfigContext)
+  // para incluir también las que ya están en 'Entregado'. Si un auto entró y se
+  // entregó el mismo día, su venta debe contarse en el corte del turno actual.
+  const [activeOrders, setActiveOrders] = React.useState<Order[]>([]);
+  React.useEffect(() => {
+    if (!turnoActivo) {
+      setActiveOrders([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const all = await getOrdenesByTurno(turnoActivo.id);
+      if (!cancelled) setActiveOrders(all);
+    })();
+    return () => { cancelled = true; };
+  }, [turnoActivo, orders, showCorteModal]);
 
   const totalHoy = activeOrders.reduce((acc, curr) => acc + curr.total, 0);
   const autosHoy = activeOrders.length;
