@@ -43,6 +43,9 @@ export default function DashboardPage() {
   const [showCorteModal, setShowCorteModal] = React.useState(false);
   const [turnoActivo, setTurnoActivo] = React.useState<Turno | null>(null);
   const [turnoTieneOrdenes, setTurnoTieneOrdenes] = React.useState(false);
+  // Incrementar este contador fuerza que ensureTurno se re-ejecute aunque
+  // 'user' no haya cambiado (p.ej. justo después de cerrar un corte).
+  const [turnoRefreshKey, setTurnoRefreshKey] = React.useState(0);
   const [montoDeclarado, setMontoDeclarado] = React.useState("");
   const [ajusteMonto, setAjusteMonto] = React.useState("");
   const [ajusteNota, setAjusteNota] = React.useState("");
@@ -114,7 +117,7 @@ export default function DashboardPage() {
     };
     ensureTurno();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, turnoRefreshKey]);
 
   // Días desde apertura del turno → escalación de severidad del aviso:
   //   1 día  → banner amarillo (recordatorio)
@@ -173,6 +176,9 @@ export default function DashboardPage() {
     // Refresca las órdenes en memoria: tras el corte todas quedaron 'Entregado'
     // en Supabase y ya no deben aparecer en el Kanban ni en el dashboard.
     refreshOrders();
+    // Fuerza que ensureTurno re-detecte el nuevo turno que el POS pudo haber
+    // abierto automáticamente al crear la primera orden del siguiente turno.
+    setTurnoRefreshKey(k => k + 1);
   };
 
   const realStats = [
