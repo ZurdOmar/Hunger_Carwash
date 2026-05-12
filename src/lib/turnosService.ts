@@ -90,8 +90,8 @@ export async function getTurnoActivo(sucursalId: string): Promise<Turno | null> 
 // a las 00:00 del calendario y no exactamente 24h después.
 //   - 0 = mismo día (turno normal)
 //   - 1 = día siguiente (banner amarillo: corte pendiente)
-//   - 2 = dos días después (banner rojo: urgente)
-//   - 3+ = tres o más días (bloqueo del POS)
+//   - 2 = dos días después (banner naranja: urgente)
+//   - 3+ = tres o más días (banner rojo: muy urgente)
 export function getDiasDesdeApertura(turno: Turno | null): number {
   if (!turno?.fecha_apertura) return 0
   const apertura = new Date(turno.fecha_apertura)

@@ -28,7 +28,6 @@ import {
   AlertCircle,
   LayoutGrid,
   TrendingDown,
-  Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
@@ -57,9 +56,7 @@ export default function POSPage() {
   const [appliedPromo, setAppliedPromo] = React.useState<PromoRule | null>(null);
   const [detectedPromo, setDetectedPromo] = React.useState<PromoRule | null>(null);
 
-  // Carga el turno activo para detectar si lleva 3+ días abierto sin corte:
-  // en ese caso bloqueamos el POS para forzar el cierre antes de seguir
-  // mezclando ventas de varios días en el mismo turno.
+  // Carga el turno activo para mostrar banner de advertencia si lleva días sin corte.
   const [turnoCheck, setTurnoCheck] = React.useState<Turno | null>(null);
   const [turnoCheckLoaded, setTurnoCheckLoaded] = React.useState(false);
   React.useEffect(() => {
@@ -78,7 +75,6 @@ export default function POSPage() {
     () => getDiasDesdeApertura(turnoCheck),
     [turnoCheck]
   );
-  const posBloqueado = turnoCheckLoaded && diasDesdeAperturaTurno >= 3;
 
   // Historial del vehículo (búsqueda en vivo mientras escriben la placa)
   type PlacaHistoryItem = {
@@ -336,36 +332,30 @@ export default function POSPage() {
     setIsFinishing(false);
   };
 
-  if (posBloqueado) {
-    return (
-      <div className="max-w-2xl mx-auto pt-12">
-        <Card className="border-red-500/40 bg-red-500/5">
-          <CardContent className="p-8 text-center space-y-5">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/15">
-              <Lock className="w-8 h-8 text-red-400" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-red-100">POS bloqueado: corte de caja pendiente</h2>
-              <p className="text-sm text-red-200/80">
-                El turno actual lleva {diasDesdeAperturaTurno} días abierto sin cierre. Para evitar mezclar ventas
-                de varios días en el mismo corte, no se pueden registrar nuevas órdenes hasta que se realice el
-                corte de caja.
-              </p>
-            </div>
-            <Button
-              onClick={() => router.push('/dashboard')}
-              className="bg-red-500 hover:bg-red-600 text-white font-bold tracking-tight uppercase rounded-xl"
-            >
-              Ir al dashboard a realizar corte
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
+      {turnoCheckLoaded && diasDesdeAperturaTurno >= 1 && (
+        <div
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold ${
+            diasDesdeAperturaTurno >= 3
+              ? 'bg-red-500/10 border-red-500/30 text-red-300'
+              : diasDesdeAperturaTurno === 2
+                ? 'bg-orange-500/10 border-orange-500/30 text-orange-300'
+                : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
+          }`}
+        >
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1">
+            Corte de caja pendiente — el turno lleva {diasDesdeAperturaTurno} {diasDesdeAperturaTurno === 1 ? 'día' : 'días'} abierto.
+          </span>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="underline underline-offset-2 whitespace-nowrap hover:opacity-80 transition-opacity"
+          >
+            Ir al corte
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <Heading level={2}>Nuevo Servicio</Heading>
         <div className="flex gap-2">
