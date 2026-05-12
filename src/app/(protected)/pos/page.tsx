@@ -59,6 +59,7 @@ export default function POSPage() {
   // Carga el turno activo para mostrar banner de advertencia si lleva días sin corte.
   const [turnoCheck, setTurnoCheck] = React.useState<Turno | null>(null);
   const [turnoCheckLoaded, setTurnoCheckLoaded] = React.useState(false);
+  const [turnoTieneOrdenes, setTurnoTieneOrdenes] = React.useState(false);
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -67,7 +68,14 @@ export default function POSPage() {
       const t = await getTurnoActivo(matriz.id);
       if (cancelled) return;
       setTurnoCheck(t);
-      setTurnoCheckLoaded(true);
+      if (t) {
+        const { count } = await supabase
+          .from('ordenes_servicio')
+          .select('id', { count: 'exact', head: true })
+          .eq('turno_id', t.id);
+        if (!cancelled) setTurnoTieneOrdenes((count ?? 0) > 0);
+      }
+      if (!cancelled) setTurnoCheckLoaded(true);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -334,7 +342,7 @@ export default function POSPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
-      {turnoCheckLoaded && diasDesdeAperturaTurno >= 2 && (
+      {turnoCheckLoaded && diasDesdeAperturaTurno >= 1 && turnoTieneOrdenes && (
         <div
           className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold ${
             diasDesdeAperturaTurno >= 4
