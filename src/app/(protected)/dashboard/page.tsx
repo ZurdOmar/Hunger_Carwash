@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [showCorteModal, setShowCorteModal] = React.useState(false);
   const [turnoActivo, setTurnoActivo] = React.useState<Turno | null>(null);
+  const [turnoTieneOrdenes, setTurnoTieneOrdenes] = React.useState(false);
   const [montoDeclarado, setMontoDeclarado] = React.useState("");
   const [isClosing, setIsClosing] = React.useState(false);
   const [corteError, setCorteError] = React.useState<string | null>(null);
@@ -87,6 +88,14 @@ export default function DashboardPage() {
       }
 
       if (!cancelled) setTurnoActivo(activo);
+
+      if (activo) {
+        const { count } = await supabase
+          .from('ordenes_servicio')
+          .select('id', { count: 'exact', head: true })
+          .eq('turno_id', activo.id);
+        if (!cancelled) setTurnoTieneOrdenes((count ?? 0) > 0);
+      }
     };
     ensureTurno();
     return () => { cancelled = true; };
@@ -159,7 +168,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {diasDesdeApertura >= 1 && turnoActivo?.fecha_apertura && (
+      {diasDesdeApertura >= 1 && turnoActivo?.fecha_apertura && turnoTieneOrdenes && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
