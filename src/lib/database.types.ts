@@ -483,6 +483,16 @@ export type Database = {
           activo: boolean
         }
       }
+      cerrar_turno_rpc: {
+        Args: {
+          p_turno_id: string
+          p_monto_declarado: number
+          p_monto_sistema: number
+          p_ajuste_monto?: number
+          p_ajuste_nota?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       estado_membresia: "Activa" | "Cancelada" | "Vencida"
