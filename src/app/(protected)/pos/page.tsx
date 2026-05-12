@@ -334,12 +334,12 @@ export default function POSPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
-      {turnoCheckLoaded && diasDesdeAperturaTurno >= 1 && (
+      {turnoCheckLoaded && diasDesdeAperturaTurno >= 2 && (
         <div
           className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold ${
-            diasDesdeAperturaTurno >= 3
+            diasDesdeAperturaTurno >= 4
               ? 'bg-red-500/10 border-red-500/30 text-red-300'
-              : diasDesdeAperturaTurno === 2
+              : diasDesdeAperturaTurno === 3
                 ? 'bg-orange-500/10 border-orange-500/30 text-orange-300'
                 : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
           }`}
