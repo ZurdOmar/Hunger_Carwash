@@ -53,6 +53,13 @@ export default function DashboardPage() {
   const [isClosing, setIsClosing] = React.useState(false);
   const [corteError, setCorteError] = React.useState<string | null>(null);
   const [turnoCerrado, setTurnoCerrado] = React.useState<Turno | null>(null);
+  // Snapshot de totales capturado justo antes de cerrar el turno.
+  // Sin esto, setTurnoActivo(null) limpia activeOrders antes de que el
+  // recibo se renderice y el ReciboCorte muestra todo en ceros.
+  const [corteSnapshot, setCorteSnapshot] = React.useState<{
+    cashTotal: number; cardTotal: number; memberTotal: number;
+    totalHoy: number; autosHoy: number;
+  } | null>(null);
 
   // Órdenes del turno activo — consultadas directo a Supabase (no a ConfigContext)
   // para incluir también las que ya están en 'Entregado'. Si un auto entró y se
@@ -156,6 +163,9 @@ export default function DashboardPage() {
         ajusteNum,
         ajusteNum !== 0 ? ajusteNota.trim() : null
       );
+      // Congelar los totales ANTES de setTurnoActivo(null) para que el
+      // recibo muestre los valores reales y no los ceros post-limpieza.
+      setCorteSnapshot({ cashTotal, cardTotal, memberTotal, totalHoy, autosHoy });
       setTurnoCerrado(cerrado);
       setTurnoActivo(null);
     } catch (err: any) {
@@ -167,6 +177,7 @@ export default function DashboardPage() {
 
   const cerrarRecibo = () => {
     setTurnoCerrado(null);
+    setCorteSnapshot(null);
     setShowCorteModal(false);
     setMontoDeclarado("");
     setAjusteMonto("");
@@ -412,11 +423,11 @@ export default function DashboardPage() {
                 <ReciboCorte
                   turno={turnoCerrado}
                   cashierName={profile?.full_name || user?.email || "—"}
-                  cashTotal={cashTotal}
-                  cardTotal={cardTotal}
-                  memberTotal={memberTotal}
-                  totalHoy={totalHoy}
-                  autosHoy={autosHoy}
+                  cashTotal={corteSnapshot?.cashTotal ?? 0}
+                  cardTotal={corteSnapshot?.cardTotal ?? 0}
+                  memberTotal={corteSnapshot?.memberTotal ?? 0}
+                  totalHoy={corteSnapshot?.totalHoy ?? 0}
+                  autosHoy={corteSnapshot?.autosHoy ?? 0}
                   onClose={cerrarRecibo}
                 />
               ) : (
