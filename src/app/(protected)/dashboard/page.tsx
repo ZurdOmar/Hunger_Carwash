@@ -37,7 +37,7 @@ const stats = [
 ];
 
 export default function DashboardPage() {
-  const { orders, members } = useConfig();
+  const { orders, members, refreshOrders } = useConfig();
   const { user, profile } = useAuth();
   const router = useRouter();
   const [showCorteModal, setShowCorteModal] = React.useState(false);
@@ -170,6 +170,9 @@ export default function DashboardPage() {
     setAjusteNota("");
     setShowAjuste(false);
     setCorteError(null);
+    // Refresca las órdenes en memoria: tras el corte todas quedaron 'Entregado'
+    // en Supabase y ya no deben aparecer en el Kanban ni en el dashboard.
+    refreshOrders();
   };
 
   const realStats = [

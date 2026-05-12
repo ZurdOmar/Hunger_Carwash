@@ -49,39 +49,19 @@ export async function cerrarTurno(
   ajusteMonto: number = 0,
   ajusteNota: string | null = null
 ): Promise<Turno> {
-  // Fórmula de diferencia con ajuste:
-  //   diferencia = declarado - sistema - ajuste
-  // Si ajuste = 0 (caso común), se reduce a la fórmula clásica.
-  const diferencia = montoDeclarado - montoSistema - ajusteMonto
-  const fechaCierre = new Date().toISOString()
-
-  // Antes de cerrar el turno, marca como 'Entregado' todas las órdenes
-  // del turno que sigan en proceso. Los autos ya salieron físicamente del
-  // carwash; el Kanban no debe seguir mostrándolos al día siguiente.
-  const { error: ordersError } = await supabase
-    .from('ordenes_servicio')
-    .update({ estado: 'Entregado', fecha_cierre: fechaCierre })
-    .eq('turno_id', turnoId)
-    .neq('estado', 'Entregado')
-  if (ordersError) throw ordersError
-
-  const { data, error } = await supabase
-    .from('turnos')
-    .update({
-      monto_declarado: montoDeclarado,
-      monto_sistema: montoSistema,
-      diferencia: diferencia,
-      ajuste_monto: ajusteMonto,
-      ajuste_nota: ajusteNota,
-      fecha_cierre: fechaCierre,
-      estado: 'cerrado',
-    })
-    .eq('id', turnoId)
-    .select()
-    .single()
+  // Delega el cierre a la función RPC cerrar_turno_rpc (SECURITY DEFINER).
+  // Al ejecutarse dentro de la BD como postgres, el UPDATE a ordenes_servicio
+  // siempre se aplica sin depender del rol del cliente que llama.
+  const { data, error } = await supabase.rpc('cerrar_turno_rpc', {
+    p_turno_id:        turnoId,
+    p_monto_declarado: montoDeclarado,
+    p_monto_sistema:   montoSistema,
+    p_ajuste_monto:    ajusteMonto,
+    p_ajuste_nota:     ajusteNota ?? null,
+  })
 
   if (error) throw error
-  if (!data) throw new Error(`No se encontró el turno ${turnoId} para cerrar`)
+  if (!data) throw new Error(`No se pudo cerrar el turno ${turnoId}`)
   return data as Turno
 }
 

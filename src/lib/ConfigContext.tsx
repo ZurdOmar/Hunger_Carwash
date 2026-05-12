@@ -39,6 +39,8 @@ interface ConfigContextType {
   addOrder: (order: Order) => void;
   updateOrderStatus: (orderId: string, newStatus: Order['status']) => void;
   updateOrderAssignment: (orderId: string, washerId?: string, bayNumber?: number) => void;
+  /** Re-fetches active orders from Supabase (útil tras cerrar un turno). */
+  refreshOrders: () => Promise<void>;
 
   // Gestión de Fidelización
   addOrUpdateMember: (placa: string) => void;
@@ -176,36 +178,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         })));
       }
 
-      const { data: dbOrders, error: ordersErr } = await supabase
-        .from("ordenes_servicio")
-        .select("*, vehiculos(*)")
-        .neq("estado", "Entregado")
-        .order("created_at", { ascending: false });
-      if (ordersErr) console.error("ordenes_servicio:", ordersErr);
-
-      if (dbOrders) {
-        setOrders(dbOrders.map((o: any) => ({
-          id: o.id,
-          folio: `${o.folio}`,
-          vehicle: {
-            placa: o.vehiculos?.placa || "",
-            brand: o.vehiculos?.marca || "",
-            model: o.vehiculos?.modelo || "",
-            size: (o.vehiculos?.tamano || "Carro Chico") as VehicleSize,
-          },
-          services: o.servicios || [],
-          isPremium: o.es_premium || false,
-          basePrice: o.total || 0,
-          premiumPrice: o.premium_extra_cost || 0,
-          total: o.total || 0,
-          status: o.estado as Order['status'],
-          washerId: o.lavador_id || undefined,
-          bayNumber: o.cajon_id || undefined,
-          createdAt: o.created_at || new Date().toISOString(),
-          paymentMethod: o.metodo_pago || undefined,
-          turnoId: o.turno_id || undefined,
-        })));
-      }
+      await fetchAndSetOrders();
 
       const { data: dbVehiculos, error: vehErr } = await supabase
         .from("vehiculos")
@@ -233,6 +206,48 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         syncInProgress.current = false;
       });
   }, [user?.id, authLoading]);
+
+  // ---------------------------------------------------------------------------
+  // fetchAndSetOrders: extrae y mapea las órdenes activas desde Supabase.
+  // Se usa tanto en la sincronización inicial como en refreshOrders.
+  // ---------------------------------------------------------------------------
+  const fetchAndSetOrders = async () => {
+    const { data: dbOrders, error: ordersErr } = await supabase
+      .from("ordenes_servicio")
+      .select("*, vehiculos(*)")
+      .neq("estado", "Entregado")
+      .order("created_at", { ascending: false });
+    if (ordersErr) console.error("ordenes_servicio:", ordersErr);
+
+    if (dbOrders) {
+      setOrders(dbOrders.map((o: any) => ({
+        id: o.id,
+        folio: `${o.folio}`,
+        vehicle: {
+          placa: o.vehiculos?.placa || "",
+          brand: o.vehiculos?.marca || "",
+          model: o.vehiculos?.modelo || "",
+          size: (o.vehiculos?.tamano || "Carro Chico") as VehicleSize,
+        },
+        services: o.servicios || [],
+        isPremium: o.es_premium || false,
+        basePrice: o.total || 0,
+        premiumPrice: o.premium_extra_cost || 0,
+        total: o.total || 0,
+        status: o.estado as Order['status'],
+        washerId: o.lavador_id || undefined,
+        bayNumber: o.cajon_id || undefined,
+        createdAt: o.created_at || new Date().toISOString(),
+        paymentMethod: o.metodo_pago || undefined,
+        turnoId: o.turno_id || undefined,
+      })));
+    }
+  };
+
+  // Expuesto en contexto: permite refrescar órdenes sin recargar la página.
+  const refreshOrders = async () => {
+    await fetchAndSetOrders();
+  };
 
   // --- Catálogos ---
   const addVehicleSize = async (name: string, price: number) => {
@@ -550,7 +565,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       vehicleSizes, services, basePrices, orders, washers, bays, members, promoRules,
       addVehicleSize, addService, toggleVisibility, addOrder, updateOrderStatus, updateOrderAssignment,
       addOrUpdateMember, getMemberInfo: (p) => members.find(m => m.placa === p), addPromoRule, removePromoRule,
-      addWasher, toggleWasherStatus, addBay, removeBay, updateBayDefaultWasher, applyPercentIncrease
+      addWasher, toggleWasherStatus, addBay, removeBay, updateBayDefaultWasher, applyPercentIncrease,
+      refreshOrders,
     }}>
       {children}
       {confirmModalState && (
