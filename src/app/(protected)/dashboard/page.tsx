@@ -44,6 +44,9 @@ export default function DashboardPage() {
   const [turnoActivo, setTurnoActivo] = React.useState<Turno | null>(null);
   const [turnoTieneOrdenes, setTurnoTieneOrdenes] = React.useState(false);
   const [montoDeclarado, setMontoDeclarado] = React.useState("");
+  const [ajusteMonto, setAjusteMonto] = React.useState("");
+  const [ajusteNota, setAjusteNota] = React.useState("");
+  const [showAjuste, setShowAjuste] = React.useState(false);
   const [isClosing, setIsClosing] = React.useState(false);
   const [corteError, setCorteError] = React.useState<string | null>(null);
   const [turnoCerrado, setTurnoCerrado] = React.useState<Turno | null>(null);
@@ -122,7 +125,10 @@ export default function DashboardPage() {
     [turnoActivo]
   );
 
-  const diferencia = montoDeclarado ? parseFloat(montoDeclarado) - cashTotal : 0;
+  // Fórmula con ajuste: diferencia = declarado - sistema - ajuste.
+  // Si ajuste = 0 (caso normal), se reduce a la fórmula clásica.
+  const ajusteNum = ajusteMonto ? parseFloat(ajusteMonto) : 0;
+  const diferencia = montoDeclarado ? parseFloat(montoDeclarado) - cashTotal - ajusteNum : 0;
 
   const handleFinalizarTurno = async () => {
     setCorteError(null);
@@ -134,12 +140,18 @@ export default function DashboardPage() {
       setCorteError("Ingresa el monto declarado en caja.");
       return;
     }
+    if (ajusteNum !== 0 && !ajusteNota.trim()) {
+      setCorteError("El ajuste requiere una nota que explique el motivo.");
+      return;
+    }
     setIsClosing(true);
     try {
       const cerrado = await cerrarTurno(
         turnoActivo.id,
         parseFloat(montoDeclarado),
-        cashTotal
+        cashTotal,
+        ajusteNum,
+        ajusteNum !== 0 ? ajusteNota.trim() : null
       );
       setTurnoCerrado(cerrado);
       setTurnoActivo(null);
@@ -154,6 +166,9 @@ export default function DashboardPage() {
     setTurnoCerrado(null);
     setShowCorteModal(false);
     setMontoDeclarado("");
+    setAjusteMonto("");
+    setAjusteNota("");
+    setShowAjuste(false);
     setCorteError(null);
   };
 
@@ -474,8 +489,53 @@ export default function DashboardPage() {
                               : "bg-red-500/10 text-red-400"
                         )}
                       >
-                        <span>Diferencia vs sistema</span>
+                        <span>Diferencia {ajusteNum !== 0 ? "(con ajuste)" : "vs sistema"}</span>
                         <span>{diferencia > 0 ? "+" : ""}${diferencia.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ajustes de caja: opcional, expandible. Para registrar
+                      ventas pendientes sin orden, propinas, faltantes, etc. */}
+                  <div className="space-y-2">
+                    {!showAjuste ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowAjuste(true)}
+                        className="w-full text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors py-2 underline underline-offset-4 decoration-dotted"
+                      >
+                        + Agregar ajuste de caja (opcional)
+                      </button>
+                    ) : (
+                      <div className="space-y-3 p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/20">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-yellow-200">
+                            Ajuste de caja
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => { setShowAjuste(false); setAjusteMonto(""); setAjusteNota(""); }}
+                            className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                        <input
+                          type="number"
+                          placeholder="Monto (+ ingreso / - salida)"
+                          value={ajusteMonto}
+                          onChange={(e) => setAjusteMonto(e.target.value)}
+                          disabled={isClosing}
+                          className="w-full h-12 px-4 rounded-xl bg-muted/20 border border-white/10 text-lg font-black italic tracking-tighter outline-none focus:border-yellow-500/50 transition-colors"
+                        />
+                        <textarea
+                          placeholder="Motivo del ajuste (obligatorio). Ej: Ventas pendientes del 11/May no registradas por bloqueo del POS."
+                          value={ajusteNota}
+                          onChange={(e) => setAjusteNota(e.target.value)}
+                          disabled={isClosing}
+                          rows={2}
+                          className="w-full px-4 py-2 rounded-xl bg-muted/20 border border-white/10 text-xs font-bold outline-none focus:border-yellow-500/50 transition-colors resize-none"
+                        />
                       </div>
                     )}
                   </div>
@@ -616,6 +676,19 @@ function ReciboCorte({ turno, cashierName, cashTotal, cardTotal, memberTotal, to
             <p className="text-base font-black italic tracking-tighter">${(turno.monto_declarado ?? 0).toLocaleString()}</p>
           </div>
         </div>
+        {turno.ajuste_monto != null && Number(turno.ajuste_monto) !== 0 && (
+          <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4 space-y-2">
+            <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-yellow-300">
+              <span>Ajuste de caja</span>
+              <span>{Number(turno.ajuste_monto) > 0 ? "+" : ""}${Number(turno.ajuste_monto).toLocaleString()}</span>
+            </div>
+            {turno.ajuste_nota && (
+              <p className="text-[10px] font-bold text-yellow-200/80 leading-relaxed">
+                {turno.ajuste_nota}
+              </p>
+            )}
+          </div>
+        )}
         <div className={cn("flex justify-between items-center px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest", difColor, dif === 0 ? "bg-green-500/10" : dif > 0 ? "bg-yellow-500/10" : "bg-red-500/10")}>
           <span>Diferencia</span>
           <span>{dif > 0 ? "+" : ""}${dif.toLocaleString()}</span>

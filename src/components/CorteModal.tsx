@@ -21,6 +21,9 @@ interface CorteModalProps {
 
 export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps) {
   const [montoDeclarado, setMontoDeclarado] = useState('')
+  const [ajusteMonto, setAjusteMonto] = useState('')
+  const [ajusteNota, setAjusteNota] = useState('')
+  const [showAjuste, setShowAjuste] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Órdenes reales del turno (incluye 'Entregado', que ConfigContext.orders excluye).
@@ -60,7 +63,8 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
     .reduce((sum, o) => sum + o.total, 0)
 
   const totalSistema = efectivoTotal
-  const diferencia = montoDeclarado ? parseInt(montoDeclarado) - totalSistema : 0
+  const ajusteNum = ajusteMonto ? parseFloat(ajusteMonto) : 0
+  const diferencia = montoDeclarado ? parseFloat(montoDeclarado) - totalSistema - ajusteNum : 0
 
   const handleDescargarCSV = () => {
     const turno = {
@@ -69,8 +73,10 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
       usuario_id: null,
       monto_inicial: 0,
       monto_sistema: totalSistema,
-      monto_declarado: montoDeclarado ? parseInt(montoDeclarado) : 0,
+      monto_declarado: montoDeclarado ? parseFloat(montoDeclarado) : 0,
       diferencia: diferencia,
+      ajuste_monto: ajusteNum,
+      ajuste_nota: ajusteNum !== 0 ? ajusteNota : null,
       fecha_apertura: new Date().toISOString(),
       fecha_cierre: null,
       estado: 'abierto',
@@ -86,12 +92,22 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
       setError('Ingresa el monto declarado')
       return
     }
+    if (ajusteNum !== 0 && !ajusteNota.trim()) {
+      setError('El ajuste requiere una nota que explique el motivo.')
+      return
+    }
 
     setIsProcessing(true)
     setError(null)
 
     try {
-      await cerrarTurno(turnoId, parseInt(montoDeclarado), totalSistema)
+      await cerrarTurno(
+        turnoId,
+        parseFloat(montoDeclarado),
+        totalSistema,
+        ajusteNum,
+        ajusteNum !== 0 ? ajusteNota.trim() : null
+      )
       toast.success('Corte realizado y enviado exitosamente')
       onClose()
     } catch (err) {
@@ -182,6 +198,50 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
                     className="text-lg font-bold h-12"
                     disabled={isProcessing}
                   />
+                </div>
+
+                {/* Ajuste de caja (opcional) */}
+                <div className="space-y-2">
+                  {!showAjuste ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAjuste(true)}
+                      className="text-xs font-bold text-muted-foreground hover:text-primary underline underline-offset-4 decoration-dotted"
+                    >
+                      + Agregar ajuste de caja (opcional)
+                    </button>
+                  ) : (
+                    <div className="space-y-3 p-4 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-widest text-yellow-200">
+                          Ajuste de caja
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => { setShowAjuste(false); setAjusteMonto(''); setAjusteNota(''); }}
+                          className="text-[10px] font-bold uppercase text-muted-foreground hover:text-foreground"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder="Monto (+ ingreso / - salida)"
+                        value={ajusteMonto}
+                        onChange={(e) => setAjusteMonto(e.target.value)}
+                        disabled={isProcessing}
+                        className="h-11 font-bold"
+                      />
+                      <textarea
+                        placeholder="Motivo del ajuste (obligatorio). Ej: Ventas pendientes del 11/May no registradas por bloqueo del POS."
+                        value={ajusteNota}
+                        onChange={(e) => setAjusteNota(e.target.value)}
+                        disabled={isProcessing}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-md bg-background border border-input text-xs outline-none focus:border-yellow-500/50 resize-none"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Diferencia */}

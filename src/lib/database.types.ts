@@ -362,6 +362,8 @@ export type Database = {
       }
       turnos: {
         Row: {
+          ajuste_monto: number
+          ajuste_nota: string | null
           diferencia: number | null
           estado: string | null
           fecha_apertura: string | null
@@ -374,6 +376,8 @@ export type Database = {
           usuario_id: string | null
         }
         Insert: {
+          ajuste_monto?: number
+          ajuste_nota?: string | null
           diferencia?: number | null
           estado?: string | null
           fecha_apertura?: string | null
@@ -386,6 +390,8 @@ export type Database = {
           usuario_id?: string | null
         }
         Update: {
+          ajuste_monto?: number
+          ajuste_nota?: string | null
           diferencia?: number | null
           estado?: string | null
           fecha_apertura?: string | null

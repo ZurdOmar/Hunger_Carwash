@@ -12,6 +12,8 @@ export interface Turno {
   fecha_apertura: string | null
   fecha_cierre: string | null
   estado: string | null
+  ajuste_monto?: number | null
+  ajuste_nota?: string | null
 }
 
 export async function abrirTurno(
@@ -43,9 +45,14 @@ export async function abrirTurno(
 export async function cerrarTurno(
   turnoId: string,
   montoDeclarado: number,
-  montoSistema: number
+  montoSistema: number,
+  ajusteMonto: number = 0,
+  ajusteNota: string | null = null
 ): Promise<Turno> {
-  const diferencia = montoDeclarado - montoSistema
+  // Fórmula de diferencia con ajuste:
+  //   diferencia = declarado - sistema - ajuste
+  // Si ajuste = 0 (caso común), se reduce a la fórmula clásica.
+  const diferencia = montoDeclarado - montoSistema - ajusteMonto
   const fechaCierre = new Date().toISOString()
 
   // Antes de cerrar el turno, marca como 'Entregado' todas las órdenes
@@ -64,6 +71,8 @@ export async function cerrarTurno(
       monto_declarado: montoDeclarado,
       monto_sistema: montoSistema,
       diferencia: diferencia,
+      ajuste_monto: ajusteMonto,
+      ajuste_nota: ajusteNota,
       fecha_cierre: fechaCierre,
       estado: 'cerrado',
     })
@@ -191,6 +200,10 @@ export function generarCSVCorte(orders: Order[], turno: Turno): string {
   csv += `Fecha Cierre,${fechaCierre}\n`
   csv += `Monto Inicial,${turno.monto_inicial}\n`
   csv += `Monto Sistema,${turno.monto_sistema || 0}\n`
+  if (turno.ajuste_monto && Number(turno.ajuste_monto) !== 0) {
+    csv += `Ajuste,${turno.ajuste_monto}\n`
+    csv += `Nota Ajuste,"${(turno.ajuste_nota || '').replace(/"/g, '""')}"\n`
+  }
   csv += `Monto Declarado,${turno.monto_declarado || 0}\n`
   csv += `Diferencia,${turno.diferencia || 0}\n\n`
 
