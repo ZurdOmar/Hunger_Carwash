@@ -31,6 +31,8 @@ import { cn } from "@/lib/utils";
 import { OrderStatus, Order } from "@/lib/types";
 import { useConfig } from "@/lib/ConfigContext";
 import { useRouter } from "next/navigation";
+import { getTurnoActivo } from "@/lib/turnosService";
+import { supabase } from "@/lib/supabase";
 
 const COLUMNS: OrderStatus[] = ['Recepción', 'Lavado', 'Secado', 'Listo'];
 
@@ -47,8 +49,27 @@ export default function OperationsPage() {
   
   const baysCount = bays.length;
 
-  // Órdenes activas (no entregadas)
-  const activeOrders = orders.filter(o => o.status !== 'Entregado');
+  // Carga el turno activo: el Kanban solo muestra órdenes del turno actual,
+  // no las acumuladas de turnos anteriores ya cerrados.
+  const [turnoActivoId, setTurnoActivoId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: matriz } = await supabase.from("sucursales").select("id").eq("es_matriz", true).single();
+      if (!matriz || cancelled) return;
+      const t = await getTurnoActivo(matriz.id);
+      if (cancelled) return;
+      setTurnoActivoId(t?.id ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Órdenes activas (no entregadas) del turno actual
+  const activeOrders = orders.filter(o =>
+    o.status !== 'Entregado' &&
+    turnoActivoId !== null &&
+    o.turnoId === turnoActivoId
+  );
   
   const filteredOrders = activeOrders.filter(order => {
     const matchesSearch = order.vehicle.placa.toLowerCase().includes(filter.toLowerCase()) ||

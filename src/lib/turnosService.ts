@@ -48,6 +48,16 @@ export async function cerrarTurno(
   const diferencia = montoDeclarado - montoSistema
   const fechaCierre = new Date().toISOString()
 
+  // Antes de cerrar el turno, marca como 'Entregado' todas las órdenes
+  // del turno que sigan en proceso. Los autos ya salieron físicamente del
+  // carwash; el Kanban no debe seguir mostrándolos al día siguiente.
+  const { error: ordersError } = await supabase
+    .from('ordenes_servicio')
+    .update({ estado: 'Entregado', fecha_cierre: fechaCierre })
+    .eq('turno_id', turnoId)
+    .neq('estado', 'Entregado')
+  if (ordersError) throw ordersError
+
   const { data, error } = await supabase
     .from('turnos')
     .update({
