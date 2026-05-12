@@ -62,7 +62,7 @@ export async function cerrarTurno(
 
   if (error) throw error
   if (!data) throw new Error(`No se pudo cerrar el turno ${turnoId}`)
-  return data as Turno
+  return data as unknown as Turno
 }
 
 export async function getTurnoActivo(sucursalId: string): Promise<Turno | null> {
