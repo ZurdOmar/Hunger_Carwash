@@ -12,7 +12,8 @@ import { MEXICO_BRANDS } from "@/lib/data";
 import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { getTurnoActivo, abrirTurno, getDiasDesdeApertura, type Turno } from "@/lib/turnosService";
+import { getTurnoActivo, abrirTurno } from "@/lib/turnosService";
+import { useTurnoActual } from "@/lib/hooks/useTurnoActual";
 import { toast } from "sonner";
 import { 
   Check, 
@@ -56,33 +57,13 @@ export default function POSPage() {
   const [appliedPromo, setAppliedPromo] = React.useState<PromoRule | null>(null);
   const [detectedPromo, setDetectedPromo] = React.useState<PromoRule | null>(null);
 
-  // Carga el turno activo para mostrar banner de advertencia si lleva días sin corte.
-  const [turnoCheck, setTurnoCheck] = React.useState<Turno | null>(null);
-  const [turnoCheckLoaded, setTurnoCheckLoaded] = React.useState(false);
-  const [turnoTieneOrdenes, setTurnoTieneOrdenes] = React.useState(false);
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data: matriz } = await supabase.from("sucursales").select("id").eq("es_matriz", true).single();
-      if (!matriz || cancelled) return;
-      const t = await getTurnoActivo(matriz.id);
-      if (cancelled) return;
-      setTurnoCheck(t);
-      if (t) {
-        const { count } = await supabase
-          .from('ordenes_servicio')
-          .select('id', { count: 'exact', head: true })
-          .eq('turno_id', t.id);
-        if (!cancelled) setTurnoTieneOrdenes((count ?? 0) > 0);
-      }
-      if (!cancelled) setTurnoCheckLoaded(true);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-  const diasDesdeAperturaTurno = React.useMemo(
-    () => getDiasDesdeApertura(turnoCheck),
-    [turnoCheck]
-  );
+  // El POS solo LEE el turno (no lo abre). Si está vencido, muestra banner;
+  // si no existe, el flujo de creación de orden lo abrirá explícitamente.
+  const {
+    diasDesdeApertura: diasDesdeAperturaTurno,
+    tieneOrdenes: turnoTieneOrdenes,
+    loaded: turnoCheckLoaded,
+  } = useTurnoActual();
 
   // Historial del vehículo (búsqueda en vivo mientras escriben la placa)
   type PlacaHistoryItem = {

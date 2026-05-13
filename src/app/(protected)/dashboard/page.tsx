@@ -5,9 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Heading } from "@/components/ui/Heading";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { 
+import {
   TrendingUp,
-  Users,
   Car,
   DollarSign,
   ChevronRight,
@@ -24,28 +23,26 @@ import {
 import { cn } from "@/lib/utils";
 import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
-import { abrirTurno, cerrarTurno, getTurnoActivo, getDiasDesdeApertura, getOrdenesByTurno, type Turno } from "@/lib/turnosService";
-import { supabase } from "@/lib/supabase";
+import { cerrarTurno, getOrdenesByTurno, type Turno } from "@/lib/turnosService";
+import { useTurnoActual } from "@/lib/hooks/useTurnoActual";
+import { validateAjusteCaja } from "@/lib/errorHandler";
 import { useRouter } from "next/navigation";
 import type { Order } from "@/lib/types";
-
-const stats = [
-  { label: "Ingresos Hoy", value: "$4,250", change: "+12.5%", icon: DollarSign, trend: "up" },
-  { label: "Autos Lavados", value: "32", change: "+4", icon: Car, trend: "up" },
-  { label: "Cajero", value: "Jeran R.", change: "Activo", icon: Users, trend: "neutral" },
-  { label: "Ticket Promedio", value: "$132.80", change: "-2.1%", icon: TrendingUp, trend: "down" },
-];
 
 export default function DashboardPage() {
   const { orders, members, refreshOrders } = useConfig();
   const { user, profile } = useAuth();
   const router = useRouter();
   const [showCorteModal, setShowCorteModal] = React.useState(false);
-  const [turnoActivo, setTurnoActivo] = React.useState<Turno | null>(null);
-  const [turnoTieneOrdenes, setTurnoTieneOrdenes] = React.useState(false);
-  // Incrementar este contador fuerza que ensureTurno se re-ejecute aunque
-  // 'user' no haya cambiado (p.ej. justo después de cerrar un corte).
-  const [turnoRefreshKey, setTurnoRefreshKey] = React.useState(0);
+  // El dashboard SÍ auto-abre turno (autoOpenForUserId) — es la página
+  // responsable de garantizar que siempre exista uno activo al iniciar el día.
+  const {
+    turno: turnoActivo,
+    diasDesdeApertura,
+    tieneOrdenes: turnoTieneOrdenes,
+    refresh: refreshTurno,
+    clear: clearTurno,
+  } = useTurnoActual({ autoOpenForUserId: user?.id });
   const [montoDeclarado, setMontoDeclarado] = React.useState("");
   const [ajusteMonto, setAjusteMonto] = React.useState("");
   const [ajusteNota, setAjusteNota] = React.useState("");
@@ -54,8 +51,8 @@ export default function DashboardPage() {
   const [corteError, setCorteError] = React.useState<string | null>(null);
   const [turnoCerrado, setTurnoCerrado] = React.useState<Turno | null>(null);
   // Snapshot de totales capturado justo antes de cerrar el turno.
-  // Sin esto, setTurnoActivo(null) limpia activeOrders antes de que el
-  // recibo se renderice y el ReciboCorte muestra todo en ceros.
+  // Sin esto, clearTurno() limpia activeOrders antes de que el recibo se
+  // renderice y el ReciboCorte muestra todo en ceros.
   const [corteSnapshot, setCorteSnapshot] = React.useState<{
     cashTotal: number; cardTotal: number; memberTotal: number;
     totalHoy: number; autosHoy: number;
@@ -85,56 +82,6 @@ export default function DashboardPage() {
   const cardTotal = activeOrders.filter(o => o.paymentMethod === 'Tarjeta').reduce((acc, curr) => acc + curr.total, 0);
   const memberTotal = activeOrders.filter(o => o.paymentMethod === 'Membresía').reduce((acc, curr) => acc + curr.total, 0);
 
-  // Carga el turno abierto de la sucursal matriz. Si NO hay ninguno, abre uno
-  // nuevo (defensivo). NUNCA cierra automáticamente turnos del día anterior:
-  // hacerlo destruye los datos del corte (el cajero debe contar el efectivo
-  // físico manualmente). Si el turno abierto es de un día anterior, se muestra
-  // tal cual y la UI avisa con un banner para que el cajero haga el corte.
-  React.useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    const ensureTurno = async () => {
-      // fondo_caja_default permite que el turno auto-abierto arranque con el
-      // fondo real configurado por el admin (antes era 0 → corte salía mal).
-      const { data: matriz } = await supabase
-        .from("sucursales")
-        .select("id, fondo_caja_default")
-        .eq("es_matriz", true)
-        .single();
-      if (!matriz || cancelled) return;
-
-      let activo = await getTurnoActivo(matriz.id);
-
-      if (!activo) {
-        const fondoInicial = Number(matriz.fondo_caja_default ?? 0);
-        const nuevoId = await abrirTurno(matriz.id, user.id, fondoInicial);
-        if (!nuevoId || cancelled) return;
-        activo = await getTurnoActivo(matriz.id);
-      }
-
-      if (!cancelled) setTurnoActivo(activo);
-
-      if (activo) {
-        const { count } = await supabase
-          .from('ordenes_servicio')
-          .select('id', { count: 'exact', head: true })
-          .eq('turno_id', activo.id);
-        if (!cancelled) setTurnoTieneOrdenes((count ?? 0) > 0);
-      }
-    };
-    ensureTurno();
-    return () => { cancelled = true; };
-  }, [user, turnoRefreshKey]);
-
-  // Días desde apertura del turno → escalación de severidad del aviso:
-  //   1 día  → banner amarillo (recordatorio)
-  //   2 días → banner rojo (urgente)
-  //   3+ días → bloqueo del POS (gestionado en pos/page.tsx)
-  const diasDesdeApertura = React.useMemo(
-    () => getDiasDesdeApertura(turnoActivo),
-    [turnoActivo]
-  );
-
   // Fórmula con ajuste: diferencia = declarado - sistema - ajuste.
   // Si ajuste = 0 (caso normal), se reduce a la fórmula clásica.
   const ajusteNum = ajusteMonto ? parseFloat(ajusteMonto) : 0;
@@ -150,8 +97,9 @@ export default function DashboardPage() {
       setCorteError("Ingresa el monto declarado en caja.");
       return;
     }
-    if (ajusteNum !== 0 && !ajusteNota.trim()) {
-      setCorteError("El ajuste requiere una nota que explique el motivo.");
+    const ajusteError = validateAjusteCaja(ajusteNum, ajusteNota);
+    if (ajusteError) {
+      setCorteError(ajusteError);
       return;
     }
     setIsClosing(true);
@@ -163,11 +111,11 @@ export default function DashboardPage() {
         ajusteNum,
         ajusteNum !== 0 ? ajusteNota.trim() : null
       );
-      // Congelar los totales ANTES de setTurnoActivo(null) para que el
-      // recibo muestre los valores reales y no los ceros post-limpieza.
+      // Congelar los totales ANTES de clearTurno() para que el recibo muestre
+      // los valores reales y no los ceros post-limpieza.
       setCorteSnapshot({ cashTotal, cardTotal, memberTotal, totalHoy, autosHoy });
       setTurnoCerrado(cerrado);
-      setTurnoActivo(null);
+      clearTurno();
     } catch (err: any) {
       setCorteError(err?.message || "No se pudo cerrar el turno");
     } finally {
@@ -187,9 +135,9 @@ export default function DashboardPage() {
     // Refresca las órdenes en memoria: tras el corte todas quedaron 'Entregado'
     // en Supabase y ya no deben aparecer en el Kanban ni en el dashboard.
     refreshOrders();
-    // Fuerza que ensureTurno re-detecte el nuevo turno que el POS pudo haber
+    // Fuerza que el hook re-detecte el nuevo turno que el POS pudo haber
     // abierto automáticamente al crear la primera orden del siguiente turno.
-    setTurnoRefreshKey(k => k + 1);
+    refreshTurno();
   };
 
   const realStats = [
