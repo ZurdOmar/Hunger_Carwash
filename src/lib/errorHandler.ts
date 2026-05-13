@@ -200,6 +200,22 @@ export function validateMoney(amount: string | number, fieldName: string = 'Mont
 }
 
 /**
+ * Validar ajuste de caja en el corte.
+ * Si el monto del ajuste es distinto de cero, la nota es obligatoria
+ * (auditoría: cada movimiento manual debe tener motivo).
+ * Devuelve null si todo OK, o un mensaje legible si falta algo.
+ */
+export function validateAjusteCaja(
+  ajusteMonto: number,
+  ajusteNota: string
+): string | null {
+  if (ajusteMonto !== 0 && !ajusteNota.trim()) {
+    return "El ajuste requiere una nota que explique el motivo.";
+  }
+  return null;
+}
+
+/**
  * Validar porcentaje
  */
 export function validatePercent(percent: string | number, fieldName: string = 'Porcentaje'): string | null {
