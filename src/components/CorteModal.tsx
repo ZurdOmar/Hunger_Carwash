@@ -10,6 +10,7 @@ import { Badge } from './ui/Badge'
 import { DollarSign, FileText, Download, AlertCircle, Loader } from 'lucide-react'
 import type { Order } from '@/lib/types'
 import { generarCSVCorte, descargarCSV, cerrarTurno, getOrdenesByTurno } from '@/lib/turnosService'
+import { validateAjusteCaja } from '@/lib/errorHandler'
 import { toast } from 'sonner'
 
 interface CorteModalProps {
@@ -92,8 +93,9 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
       setError('Ingresa el monto declarado')
       return
     }
-    if (ajusteNum !== 0 && !ajusteNota.trim()) {
-      setError('El ajuste requiere una nota que explique el motivo.')
+    const ajusteError = validateAjusteCaja(ajusteNum, ajusteNota)
+    if (ajusteError) {
+      setError(ajusteError)
       return
     }
 
