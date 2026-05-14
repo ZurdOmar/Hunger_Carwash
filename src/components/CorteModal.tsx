@@ -11,6 +11,7 @@ import { DollarSign, FileText, Download, AlertCircle, Loader } from 'lucide-reac
 import type { Order } from '@/lib/types'
 import { generarCSVCorte, descargarCSV, cerrarTurno, getOrdenesByTurno } from '@/lib/turnosService'
 import { validateAjusteCaja } from '@/lib/errorHandler'
+import { useAuth } from '@/lib/AuthContext'
 import { toast } from 'sonner'
 
 interface CorteModalProps {
@@ -21,6 +22,7 @@ interface CorteModalProps {
 }
 
 export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps) {
+  const { user } = useAuth()
   const [montoDeclarado, setMontoDeclarado] = useState('')
   const [ajusteMonto, setAjusteMonto] = useState('')
   const [ajusteNota, setAjusteNota] = useState('')
@@ -108,7 +110,8 @@ export function CorteModal({ isOpen, onClose, orders, turnoId }: CorteModalProps
         parseFloat(montoDeclarado),
         totalSistema,
         ajusteNum,
-        ajusteNum !== 0 ? ajusteNota.trim() : null
+        ajusteNum !== 0 ? ajusteNota.trim() : null,
+        user?.id ?? null
       )
       toast.success('Corte realizado y enviado exitosamente')
       onClose()

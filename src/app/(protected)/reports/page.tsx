@@ -736,7 +736,11 @@ export default function ReportsPage() {
           return ms >= turnoStartMs && ms <= turnoEndMs;
         });
         const ordersCount = turnoOrders.length;
-        const cajeroNombre = cajeros.find(c => c.id === t.usuario_id)?.full_name || '—';
+        // "Cajero" del corte = quien ejecutó el cierre (cerrado_por). Para
+        // turnos antiguos sin ese dato, cae al usuario_id (quien lo abrió)
+        // como mejor aproximación disponible.
+        const cajeroId = t.cerrado_por ?? t.usuario_id;
+        const cajeroNombre = cajeros.find(c => c.id === cajeroId)?.full_name || '—';
         const efectivo = turnoOrders.filter(o => o.metodo_pago === 'Efectivo').reduce((s, o) => s + (o.total || 0), 0);
         const tarjeta = turnoOrders.filter(o => o.metodo_pago === 'Tarjeta').reduce((s, o) => s + (o.total || 0), 0);
         const membresia = turnoOrders.filter(o => o.metodo_pago === 'Membresía').reduce((s, o) => s + (o.total || 0), 0);

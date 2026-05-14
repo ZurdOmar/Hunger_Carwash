@@ -364,6 +364,7 @@ export type Database = {
         Row: {
           ajuste_monto: number
           ajuste_nota: string | null
+          cerrado_por: string | null
           diferencia: number | null
           estado: string | null
           fecha_apertura: string | null
@@ -378,6 +379,7 @@ export type Database = {
         Insert: {
           ajuste_monto?: number
           ajuste_nota?: string | null
+          cerrado_por?: string | null
           diferencia?: number | null
           estado?: string | null
           fecha_apertura?: string | null
@@ -392,6 +394,7 @@ export type Database = {
         Update: {
           ajuste_monto?: number
           ajuste_nota?: string | null
+          cerrado_por?: string | null
           diferencia?: number | null
           estado?: string | null
           fecha_apertura?: string | null

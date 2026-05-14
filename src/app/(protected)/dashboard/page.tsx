@@ -109,7 +109,8 @@ export default function DashboardPage() {
         parseFloat(montoDeclarado),
         cashTotal,
         ajusteNum,
-        ajusteNum !== 0 ? ajusteNota.trim() : null
+        ajusteNum !== 0 ? ajusteNota.trim() : null,
+        user?.id ?? null
       );
       // Congelar los totales ANTES de clearTurno() para que el recibo muestre
       // los valores reales y no los ceros post-limpieza.

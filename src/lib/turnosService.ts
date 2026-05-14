@@ -14,6 +14,7 @@ export interface Turno {
   estado: string | null
   ajuste_monto?: number | null
   ajuste_nota?: string | null
+  cerrado_por?: string | null
 }
 
 export async function abrirTurno(
@@ -47,17 +48,19 @@ export async function cerrarTurno(
   montoDeclarado: number,
   montoSistema: number,
   ajusteMonto: number = 0,
-  ajusteNota: string | null = null
+  ajusteNota: string | null = null,
+  cerradoPor: string | null = null
 ): Promise<Turno> {
   // Delega el cierre a la función RPC cerrar_turno_rpc (SECURITY DEFINER).
   // Al ejecutarse dentro de la BD como postgres, el UPDATE a ordenes_servicio
   // siempre se aplica sin depender del rol del cliente que llama.
   const { data, error } = await supabase.rpc('cerrar_turno_rpc', {
-    p_turno_id:        turnoId,
+    p_turno_id: turnoId,
     p_monto_declarado: montoDeclarado,
-    p_monto_sistema:   montoSistema,
-    p_ajuste_monto:    ajusteMonto,
-    p_ajuste_nota:     ajusteNota ?? null,
+    p_monto_sistema: montoSistema,
+    p_ajuste_monto: ajusteMonto,
+    p_ajuste_nota: ajusteNota ?? null,
+    p_cerrado_por: cerradoPor,
   })
 
   if (error) throw error

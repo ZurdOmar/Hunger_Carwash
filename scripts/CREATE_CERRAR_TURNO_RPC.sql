@@ -13,12 +13,22 @@
 -- 3. Pega y ejecuta.
 -- ============================================================================
 
+-- Columna que registra quién ejecutó el corte (distinto del usuario_id que
+-- abrió el turno). Sin esto, "Cajero" en Reportes mostraba a quien abrió
+-- el turno, no a quien lo cerró.
+ALTER TABLE public.turnos
+  ADD COLUMN IF NOT EXISTS cerrado_por uuid REFERENCES auth.users(id);
+
+-- Eliminar firma anterior para evitar conflicto de overload al cambiar params.
+DROP FUNCTION IF EXISTS public.cerrar_turno_rpc(uuid, numeric, numeric, numeric, text);
+
 CREATE OR REPLACE FUNCTION public.cerrar_turno_rpc(
   p_turno_id       uuid,
   p_monto_declarado numeric,
   p_monto_sistema   numeric,
   p_ajuste_monto    numeric DEFAULT 0,
-  p_ajuste_nota     text    DEFAULT NULL
+  p_ajuste_nota     text    DEFAULT NULL,
+  p_cerrado_por     uuid    DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -59,7 +69,8 @@ BEGIN
     diferencia       = v_diferencia,
     ajuste_monto     = p_ajuste_monto,
     ajuste_nota      = p_ajuste_nota,
-    fecha_cierre     = v_fecha_cierre
+    fecha_cierre     = v_fecha_cierre,
+    cerrado_por      = p_cerrado_por
   WHERE id = p_turno_id;
 
   -- 3. Devolver el turno actualizado como JSON
@@ -73,7 +84,7 @@ END;
 $$;
 
 -- Permitir que usuarios autenticados llamen a esta función
-GRANT EXECUTE ON FUNCTION public.cerrar_turno_rpc(uuid, numeric, numeric, numeric, text)
+GRANT EXECUTE ON FUNCTION public.cerrar_turno_rpc(uuid, numeric, numeric, numeric, text, uuid)
   TO authenticated;
 
 -- ============================================================================
