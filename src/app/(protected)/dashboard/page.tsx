@@ -18,12 +18,14 @@ import {
   Star,
   CheckCircle2,
   X,
-  FileText
+  FileText,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConfig } from "@/lib/ConfigContext";
 import { useAuth } from "@/lib/AuthContext";
 import { cerrarTurno, getOrdenesByTurno, type Turno } from "@/lib/turnosService";
+import { imprimirCorte } from "@/lib/printService";
 import { useTurnoActual } from "@/lib/hooks/useTurnoActual";
 import { validateAjusteCaja } from "@/lib/errorHandler";
 import { useRouter } from "next/navigation";
@@ -56,6 +58,7 @@ export default function DashboardPage() {
   const [corteSnapshot, setCorteSnapshot] = React.useState<{
     cashTotal: number; cardTotal: number; memberTotal: number;
     totalHoy: number; autosHoy: number;
+    orders: Order[];
   } | null>(null);
 
   // Órdenes del turno activo — consultadas directo a Supabase (no a ConfigContext)
@@ -114,7 +117,7 @@ export default function DashboardPage() {
       );
       // Congelar los totales ANTES de clearTurno() para que el recibo muestre
       // los valores reales y no los ceros post-limpieza.
-      setCorteSnapshot({ cashTotal, cardTotal, memberTotal, totalHoy, autosHoy });
+      setCorteSnapshot({ cashTotal, cardTotal, memberTotal, totalHoy, autosHoy, orders: activeOrders });
       setTurnoCerrado(cerrado);
       clearTurno();
     } catch (err: any) {
@@ -377,6 +380,7 @@ export default function DashboardPage() {
                   memberTotal={corteSnapshot?.memberTotal ?? 0}
                   totalHoy={corteSnapshot?.totalHoy ?? 0}
                   autosHoy={corteSnapshot?.autosHoy ?? 0}
+                  orders={corteSnapshot?.orders ?? []}
                   onClose={cerrarRecibo}
                 />
               ) : (
@@ -557,10 +561,27 @@ interface ReciboProps {
   memberTotal: number;
   totalHoy: number;
   autosHoy: number;
+  orders: Order[];
   onClose: () => void;
 }
 
-function ReciboCorte({ turno, cashierName, cashTotal, cardTotal, memberTotal, totalHoy, autosHoy, onClose }: ReciboProps) {
+function ReciboCorte({ turno, cashierName, cashTotal, cardTotal, memberTotal, totalHoy, autosHoy, orders, onClose }: ReciboProps) {
+  const handlePrint = () =>
+    imprimirCorte({
+      turno,
+      cajeroNombre: cashierName,
+      cashTotal,
+      cardTotal,
+      memberTotal,
+      totalHoy,
+      autosHoy,
+      orders: orders.map((o) => ({
+        folio: o.folio,
+        placa: o.vehicle.placa,
+        total: o.total,
+        metodo: o.paymentMethod || '—',
+      })),
+    })
   const dif = turno.diferencia ?? 0;
   const difColor =
     dif === 0 ? "text-green-400" : dif > 0 ? "text-yellow-400" : "text-red-400";
@@ -664,12 +685,22 @@ function ReciboCorte({ turno, cashierName, cashTotal, cardTotal, memberTotal, to
         </div>
       </div>
 
-      <Button
-        onClick={onClose}
-        className="w-full h-14 font-black italic uppercase tracking-tighter bg-primary hover:bg-primary/90 text-black"
-      >
-        Cerrar
-      </Button>
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          variant="outline"
+          onClick={handlePrint}
+          className="h-14 font-black italic uppercase tracking-tighter border-white/10 glass gap-2"
+        >
+          <Printer className="w-4 h-4" />
+          Imprimir
+        </Button>
+        <Button
+          onClick={onClose}
+          className="h-14 font-black italic uppercase tracking-tighter bg-primary hover:bg-primary/90 text-black"
+        >
+          Cerrar
+        </Button>
+      </div>
     </div>
   );
 }

@@ -21,8 +21,10 @@ import {
   UserCog,
   Wallet,
   Wrench,
-  History
+  History,
+  Printer,
 } from "lucide-react";
+import { imprimirCorte } from "@/lib/printService";
 import { cn } from "@/lib/utils";
 import { useConfig } from "@/lib/ConfigContext";
 import { getHistorialCortes, type Turno } from "@/lib/turnosService";
@@ -760,15 +762,39 @@ export default function ReportsPage() {
                     {t.fecha_apertura ? new Date(t.fecha_apertura).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}
                   </h3>
                 </div>
-                <button
-                  onClick={() => setSelectedTurno(null)}
-                  className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all"
-                  aria-label="Cerrar"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => imprimirCorte({
+                      turno: t,
+                      cajeroNombre,
+                      cashTotal: efectivo,
+                      cardTotal: tarjeta,
+                      memberTotal: membresia,
+                      totalHoy: efectivo + tarjeta + membresia,
+                      autosHoy: ordersCount,
+                      orders: turnoOrders.map((o) => ({
+                        folio: o.folio,
+                        placa: o.vehiculos?.placa || '—',
+                        total: o.total || 0,
+                        metodo: o.metodo_pago || '—',
+                      })),
+                    })}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all text-[10px] font-black uppercase tracking-widest"
+                    aria-label="Imprimir"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Imprimir
+                  </button>
+                  <button
+                    onClick={() => setSelectedTurno(null)}
+                    className="p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all"
+                    aria-label="Cerrar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
