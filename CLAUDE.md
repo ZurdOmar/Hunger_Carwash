@@ -82,8 +82,19 @@ loading = bool (true mientras carga)
 ```
 
 **Métodos**:
-- `signOut()`: Borra sesión → redirect `/login?logout=true`
+- `signOut(reason?)`: Borra sesión (cookies `sb-*` + `hunger_last_activity`) → redirect `/login`. `reason` (`'inactivity'` | `'expired'`) se guarda en `sessionStorage` para que el login muestre el mensaje correcto.
 - `getRole()`: Retorna role o null
+
+### Timeout de sesión por inactividad
+- **1 hora de inactividad → cierre de sesión + redirect a `/login`** (`INACTIVITY_MS`).
+- Se mide por **reloj de pared**: la última actividad se guarda en `localStorage` (`hunger_last_activity`, throttled a 1 escritura / 30 s). **No** se depende de `setTimeout`, porque el SO lo congela mientras la laptop duerme y no dispararía al reabrir la pestaña.
+- La revisión (`getStaleReason`) corre: al montar / cuando `user` queda definido (incluye reabrir pestaña tras sleep), en `visibilitychange`, y en el chequeo periódico (`SESSION_CHECK_MS`, cada 5 min).
+- Actividad = `mousemove`, `mousedown`, `keydown`, `scroll`, `touchstart`.
+- 1 min antes (a los 59 min) aparece el modal "Sesión a punto de expirar" con cuenta regresiva (`WARNING_BEFORE_MS`).
+- `'expired'` (distinto de inactividad) se dispara cuando `refreshSession()` falla de verdad (token irrecuperable).
+- **Cookie de sesión acotada a 1 h**: `supabase.ts` usa un handler `cookies` propio que limita `maxAge` a `SESSION_MAX_AGE_SECONDS` (por defecto `@supabase/ssr` la fija a 400 días e ignora `cookieOptions.maxAge`). Debe mantenerse en sync con `INACTIVITY_MS`. El handler tiene guard `typeof document === 'undefined'` para no romper SSR/prerender.
+
+> ⚠️ `hunger_last_activity` NO debe agregarse a la lista de limpieza de localStorage en `ConfigContext` (esa lista es solo datos de negocio `hunger_*`).
 
 ---
 
@@ -327,6 +338,13 @@ const { theme, setTheme } = useTheme();
 - NO confiar en cliente
 - Middleware + Server Actions validan también (defense in depth)
 
+### Seguridad (invariantes críticos)
+- **Rol en signup**: el trigger `handle_new_user()` (`setup_perfiles_table.sql`) SIEMPRE asigna `'cajero'`. NUNCA leer el rol de `raw_user_meta_data` — es controlable por quien llama a `/auth/v1/signup` con la anon key pública (permitiría auto-asignarse `admin`). Los ascensos de rol solo vía `admin_update_user()`.
+- **RPCs `SECURITY DEFINER`**: bypasean RLS, así que DEBEN validar el rol del caller internamente (`SELECT role FROM perfiles WHERE id = auth.uid()`), igual que `admin_update_user`. Aplica a `cerrar_turno_rpc` (exige admin/supervisor). No confiar en parámetros de identidad del cliente (`cerrado_por` se deriva de `auth.uid()`).
+- **`search_path`**: toda función `SECURITY DEFINER` fija `SET search_path = public` (incl. `check_role`).
+- **HTTP headers** (`next.config.ts`): `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Strict-Transport-Security`.
+- Scripts SQL en `scripts/` se ejecutan **manualmente** en Supabase SQL Editor; commitearlos NO los despliega.
+
 ---
 
 ## 13. Data Flow
@@ -347,6 +365,8 @@ const { theme, setTheme } = useTheme();
 | Estado no refleja en Kanban | Server action OK pero ConfigContext no re-sincronizó. Recarga (Ctrl+Shift+R) |
 | CSV no descarga | ¿Orders vacío? Revisa fetch en `turnosService.ts` |
 | Rol cambió pero permisos iguales | AuthContext cachea perfil. Requiere logout + login |
+| Sesión se cierra sola muy pronto | ¿Alguien limpió `hunger_last_activity`? ¿`INACTIVITY_MS` mal? Revisa `AuthContext.tsx` |
+| Sesión NO se cierra tras inactividad | Revisa que `hunger_last_activity` se escriba (eventos de actividad) y `getStaleReason` |
 
 ---
 
