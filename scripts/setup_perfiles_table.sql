@@ -18,11 +18,16 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+  -- El rol NUNCA se toma de raw_user_meta_data: ese campo lo controla quien
+  -- llama a /auth/v1/signup (incluye la anon key pública), así que confiar
+  -- en él permitiría auto-asignarse 'admin' al registrarse. Todo self-signup
+  -- entra como 'cajero'; los ascensos de rol solo se hacen vía
+  -- admin_update_user() (FIX_ADMIN_USER_OPERATIONS.sql).
   INSERT INTO public.perfiles (id, full_name, role)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'cajero')
+    'cajero'
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
@@ -41,7 +46,7 @@ INSERT INTO perfiles (id, full_name, role)
 SELECT
   u.id,
   COALESCE(u.raw_user_meta_data->>'full_name', u.email) as full_name,
-  COALESCE(u.raw_user_meta_data->>'role', 'cajero') as role
+  'cajero' as role
 FROM auth.users u
 WHERE NOT EXISTS (SELECT 1 FROM perfiles p WHERE p.id = u.id)
 ON CONFLICT (id) DO NOTHING;

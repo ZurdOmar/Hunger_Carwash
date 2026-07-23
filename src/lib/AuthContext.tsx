@@ -24,9 +24,35 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const INACTIVITY_MS = 30 * 60 * 1000
+// 1 hora de inactividad → se cierra sesión y se manda a /login.
+const INACTIVITY_MS = 60 * 60 * 1000
 const WARNING_BEFORE_MS = 60 * 1000
 const SESSION_CHECK_MS = 5 * 60 * 1000
+const ACTIVITY_WRITE_THROTTLE_MS = 30 * 1000
+
+// Persistimos la última actividad en localStorage (sobrevive reload y cierre de
+// pestaña) para medir la inactividad por RELOJ DE PARED. Los timers setTimeout no
+// sirven para esto: el SO los congela mientras la laptop duerme, así que al
+// reabrir la pestaña nunca dispararían el cierre por inactividad — ese era el
+// bug por el que la sesión "seguía viva tras un día".
+const LAST_ACTIVITY_KEY = 'hunger_last_activity'
+
+const readTs = (k: string): number | null => {
+  try {
+    const v = localStorage.getItem(k)
+    return v ? parseInt(v, 10) : null
+  } catch {
+    return null
+  }
+}
+const writeTs = (k: string, v: number) => {
+  try { localStorage.setItem(k, String(v)) } catch {}
+}
+const clearSessionTs = () => {
+  try {
+    localStorage.removeItem(LAST_ACTIVITY_KEY)
+  } catch {}
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -40,6 +66,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sessionCheckRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastActivityWriteRef = useRef(0)
+
+  // Escribe la marca de última actividad (throttled: no en cada mousemove).
+  const markActivity = useCallback(() => {
+    const now = Date.now()
+    if (now - lastActivityWriteRef.current < ACTIVITY_WRITE_THROTTLE_MS) return
+    lastActivityWriteRef.current = now
+    writeTs(LAST_ACTIVITY_KEY, now)
+  }, [])
+
+  // ¿La sesión lleva demasiado tiempo inactiva (reloj de pared)? Motivo o null.
+  const getStaleReason = useCallback((): 'inactivity' | null => {
+    const last = readTs(LAST_ACTIVITY_KEY)
+    if (last !== null && Date.now() - last >= INACTIVITY_MS) return 'inactivity'
+    return null
+  }, [])
 
   useEffect(() => {
     if (initialized.current) return
@@ -56,6 +98,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         setUser(session?.user || null)
         if (!session?.user) setProfile(null)
+
+        // En login real reiniciamos la marca de actividad para no arrastrar un
+        // valor viejo de una sesión previa que dispararía un cierre inmediato.
+        if (event === 'SIGNED_IN') {
+          const now = Date.now()
+          writeTs(LAST_ACTIVITY_KEY, now)
+          lastActivityWriteRef.current = now
+        }
 
         // Unblock the UI as soon as we know the auth state — no esperamos al perfil.
         if (event === 'INITIAL_SESSION') {
@@ -139,6 +189,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
 
+    // Borra las marcas de reloj de pared para no arrastrar tiempos viejos a la
+    // próxima sesión (el SIGNED_IN las reinicia de todos modos).
+    clearSessionTs()
+
     // Hard reload destroys the current JS context (releases any pending locks)
     // and boots a clean Supabase client on the login page.
     window.location.href = '/login'
@@ -146,10 +200,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Enforcement por reloj de pared: al montar / cuando `user` queda definido
+  // (incluye reabrir la pestaña tras dormir la laptop), cierra la sesión si lleva
+  // más de 1 h inactiva. Es la red de seguridad que los timers setTimeout no
+  // pueden dar tras un sleep (el SO los congela y nunca disparan al reabrir).
+  useEffect(() => {
+    if (!user) return
+    const reason = getStaleReason()
+    if (reason) {
+      signOut(reason)
+      return
+    }
+    markActivity()
+  }, [user, getStaleReason, signOut, markActivity])
+
   const resetTimer = useCallback(() => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
     if (!user) return
 
+    markActivity()
     setShowWarning(false)
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
 
@@ -168,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
       }, 1000)
     }, INACTIVITY_MS - WARNING_BEFORE_MS)
-  }, [user])
+  }, [user, markActivity])
 
   const extendSession = () => {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
@@ -200,6 +269,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   //   2. Intentar refreshSession() — si trae sesión válida, todo bien.
   //   3. Solo desloguear si refreshSession() también falla.
   const validateSessionOrSignOut = useCallback(async () => {
+    // Primero, reloj de pared: si la sesión lleva >1 h inactiva, ciérrala aunque
+    // el refresh token siga siendo válido. Ese es justo el caso que permitía
+    // "seguir logueado tras un día" (refreshSession renovaba y nunca deslogueaba).
+    const staleReason = getStaleReason()
+    if (staleReason) {
+      signOut(staleReason)
+      return false
+    }
+
     const { data: { session } } = await supabase.auth.getSession()
     if (session) return true
 
@@ -210,7 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.warn('[AuthContext] sesión expirada confirmada:', error?.message)
     signOut('expired')
     return false
-  }, [signOut])
+  }, [signOut, getStaleReason])
 
   useEffect(() => {
     if (!user) return

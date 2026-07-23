@@ -28,7 +28,7 @@ CREATE OR REPLACE FUNCTION public.cerrar_turno_rpc(
   p_monto_sistema   numeric,
   p_ajuste_monto    numeric DEFAULT 0,
   p_ajuste_nota     text    DEFAULT NULL,
-  p_cerrado_por     uuid    DEFAULT NULL
+  p_cerrado_por     uuid    DEFAULT NULL -- ignorado: se deriva de auth.uid(), no se confía en el valor del cliente
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -39,7 +39,25 @@ DECLARE
   v_diferencia  numeric;
   v_fecha_cierre timestamptz;
   v_turno       json;
+  v_caller_role text;
 BEGIN
+  -- 1) Auth: debe haber sesión
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'No autenticado';
+  END IF;
+
+  -- 2) Authz: solo admin/supervisor pueden cerrar turnos (Cajero no puede,
+  -- ver CLAUDE.md). Sin este check, cualquier usuario autenticado podía
+  -- invocar el RPC directo desde el browser porque es SECURITY DEFINER
+  -- y estaba GRANTed a todo `authenticated`.
+  SELECT role INTO v_caller_role
+  FROM public.perfiles
+  WHERE id = auth.uid();
+
+  IF v_caller_role IS NULL OR v_caller_role NOT IN ('admin', 'supervisor') THEN
+    RAISE EXCEPTION 'Solo admin o supervisor pueden cerrar turnos';
+  END IF;
+
   -- Verificar que el turno existe y está abierto
   IF NOT EXISTS (
     SELECT 1 FROM public.turnos
@@ -70,7 +88,7 @@ BEGIN
     ajuste_monto     = p_ajuste_monto,
     ajuste_nota      = p_ajuste_nota,
     fecha_cierre     = v_fecha_cierre,
-    cerrado_por      = p_cerrado_por
+    cerrado_por      = auth.uid()
   WHERE id = p_turno_id;
 
   -- 3. Devolver el turno actualizado como JSON
