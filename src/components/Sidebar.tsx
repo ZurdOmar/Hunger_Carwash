@@ -16,6 +16,7 @@ import {
   LogOut,
   UserCog,
   Sparkles,
+  ShieldAlert,
   Sun,
   Moon
 } from "lucide-react";
@@ -157,6 +158,36 @@ export function Sidebar() {
                 </Link>
               );
             })}
+          </>
+        )}
+
+        {profile?.es_owner && (
+          <>
+            <div className="relative my-3">
+              <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            </div>
+            <Link href="/owner">
+              <motion.div
+                whileHover={{ x: 4 }}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group",
+                  pathname === '/owner'
+                    ? "sidebar-active text-primary-foreground shadow-lg shadow-primary/20"
+                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                )}
+              >
+                <div className={cn(
+                  "p-1.5 rounded-lg transition-all duration-300",
+                  pathname === '/owner' ? "bg-white/20" : "group-hover:bg-primary/10"
+                )}>
+                  <ShieldAlert className={cn(
+                    "w-4 h-4 transition-all duration-300",
+                    pathname === '/owner' ? "text-white" : "group-hover:text-primary"
+                  )} />
+                </div>
+                <span className="font-medium text-sm tracking-tight">Panel Owner</span>
+              </motion.div>
+            </Link>
           </>
         )}
       </nav>

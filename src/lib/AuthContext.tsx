@@ -11,13 +11,14 @@ export interface UserProfile {
   id: string
   full_name: string | null
   role: 'admin' | 'supervisor' | 'cajero'
+  es_owner?: boolean
 }
 
 interface AuthContextType {
   user: User | null
   profile: UserProfile | null
   loading: boolean
-  signOut: (reason?: 'inactivity' | 'expired') => void
+  signOut: (reason?: 'inactivity' | 'expired' | 'trial_expired') => void
   getRole: () => string | null
   refreshProfile: () => Promise<void>
 }
@@ -141,13 +142,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('[AuthContext] profile fetch error:', error)
         return
       }
-      if (data) setProfile(data as UserProfile)
+      if (!data) return
+
+      // es_owner se deriva de la RPC is_owner() (no de una columna en el select)
+      // para no romper en BDs donde la columna/función no existe: fail-open a false.
+      let esOwner = false
+      try {
+        const rpc = supabase.rpc as unknown as (
+          name: string
+        ) => Promise<{ data: boolean | null; error: unknown | null }>
+        const { data: owner, error: ownerErr } = await rpc('is_owner')
+        if (!ownerErr && owner === true) esOwner = true
+      } catch { /* fail-open: no owner */ }
+
+      if (cancelled) return
+      setProfile({ ...(data as UserProfile), es_owner: esOwner })
     })()
 
     return () => { cancelled = true }
   }, [user])
 
-  const signOut = useCallback((reason?: 'inactivity' | 'expired') => {
+  const signOut = useCallback((reason?: 'inactivity' | 'expired' | 'trial_expired') => {
     setUser(null)
     setProfile(null)
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
@@ -277,6 +292,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut(staleReason)
       return false
     }
+
+    // Trial del proyecto demo: si venció, cerrar sesión con mensaje. Fail-open
+    // si la RPC no existe (proyectos sin trial, p.ej. producción) o si falla.
+    // La función no está en los tipos generados → cast tipado (sin `any`).
+    try {
+      const rpc = supabase.rpc as unknown as (
+        name: string
+      ) => Promise<{ data: boolean | null; error: unknown | null }>
+      const { data: trialActive, error: trialErr } = await rpc('is_trial_active')
+      if (!trialErr && trialActive === false) {
+        signOut('trial_expired')
+        return false
+      }
+    } catch { /* fail-open: sin trial, seguimos */ }
 
     const { data: { session } } = await supabase.auth.getSession()
     if (session) return true

@@ -50,6 +50,8 @@ export default function LoginPage() {
         setSessionEndedNotice('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.')
       } else if (reason === 'expired') {
         setSessionEndedNotice('Tu sesión expiró. Vuelve a iniciar sesión para continuar.')
+      } else if (reason === 'trial_expired') {
+        setSessionEndedNotice('Tu período de prueba ha expirado.')
       }
       if (reason) sessionStorage.removeItem('session_end_reason')
     } catch {}
@@ -58,6 +60,17 @@ export default function LoginPage() {
   useEffect(() => {
     const hash = window.location.hash
     const searchParams = new URLSearchParams(window.location.search)
+
+    // Trial expirado (redirect del middleware con ?reason=trial_expired). Puede
+    // haber una sesión válida todavía en cookies: la cerramos para que no rebote
+    // a /pos, mostramos el mensaje y nos quedamos en el formulario de login.
+    if (searchParams.get('reason') === 'trial_expired') {
+      setSessionEndedNotice('Tu período de prueba ha expirado.')
+      setMode('login')
+      supabase.auth.signOut().catch(() => {})
+      router.replace('/login')
+      return
+    }
 
     // AuthContext.signOut() ya limpió localStorage y redirigió con hard-reload;
     // si por alguna razón llega ?logout=true, sólo mostramos el form.

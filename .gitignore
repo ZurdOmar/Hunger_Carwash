@@ -42,3 +42,10 @@ next-env.d.ts
 
 # Backups
 backups/
+
+# Demo (proyecto espejo)
+scripts/demo/.env.demo
+scripts/demo/demo_baseline.sql
+
+# Env local (URL + anon key + service_role key del servidor)
+.env.local

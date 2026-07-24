@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server'
 const PUBLIC_PATHS = ['/login']
 const ADMIN_ONLY_PATHS = ['/settings', '/reports']
 const SUPERVISOR_PATHS = ['/dashboard', '/reports']
+const OWNER_PATHS = ['/owner']
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request })
@@ -18,6 +19,43 @@ export async function proxy(request: NextRequest) {
   // Sin sesión en ruta protegida → redirect a login
   if (!session && !isPublicPath) {
     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Trial del proyecto demo: si venció, bloquear el acceso y mandar a /login con
+  // mensaje. Se evalúa ANTES del redirect login→/pos para no rebotar a un usuario
+  // expirado de vuelta a la app. Fail-open si la RPC no existe (producción u otros
+  // proyectos sin trial): en ese caso `is_trial_active` da error y seguimos normal.
+  if (session) {
+    let trialExpired = false
+    try {
+      const { data: trialActive, error: trialErr } = await supabase.rpc(
+        'is_trial_active' as never
+      )
+      if (!trialErr && trialActive === false) trialExpired = true
+    } catch { /* fail-open */ }
+
+    if (trialExpired) {
+      if (pathname === '/login') {
+        return response // dejar ver el login (el mensaje lo pinta la página)
+      }
+      const url = new URL('/login', request.url)
+      url.searchParams.set('reason', 'trial_expired')
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // Rutas OWNER (panel super-admin): solo el owner entra. Se valida con la RPC
+  // is_owner() (no toca el fetch de perfil de abajo). Fail-closed: si no es owner
+  // o la RPC no existe, se redirige a /pos.
+  if (session && OWNER_PATHS.some(path => pathname.startsWith(path))) {
+    let owner = false
+    try {
+      const { data: isOwner, error: ownerErr } = await supabase.rpc('is_owner' as never)
+      if (!ownerErr && isOwner === true) owner = true
+    } catch { /* fail-closed */ }
+    if (!owner) {
+      return NextResponse.redirect(new URL('/pos', request.url))
+    }
   }
 
   // Con sesión en login → redirect a /pos (a menos que sea una invitación o un logout explícito)
