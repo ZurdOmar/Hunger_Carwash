@@ -14,17 +14,20 @@ import { createAdminClient } from '@/lib/supabase-admin'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const UUID_RE = /^[0-9a-f-]{36}$/i
 
-/** Verifica que quien invoca sea el owner (vía RPC is_owner). Devuelve su user id. */
+/** Verifica que quien invoca sea el owner (columna es_owner). Devuelve su user id. */
 async function assertOwner(): Promise<string> {
   const supabase = await createServerSupabaseClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error('No autenticado')
 
-  const rpc = supabase.rpc as unknown as (
-    n: string
-  ) => Promise<{ data: boolean | null; error: unknown | null }>
-  const { data: owner, error } = await rpc('is_owner')
-  if (error || owner !== true) throw new Error('No autorizado')
+  const { data: prof } = await supabase
+    .from('perfiles')
+    .select('es_owner')
+    .eq('id', session.user.id)
+    .single()
+  if ((prof as { es_owner?: boolean } | null)?.es_owner !== true) {
+    throw new Error('No autorizado')
+  }
   return session.user.id
 }
 

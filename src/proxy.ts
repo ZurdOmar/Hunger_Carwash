@@ -44,14 +44,18 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Rutas OWNER (panel super-admin): solo el owner entra. Se valida con la RPC
-  // is_owner() (no toca el fetch de perfil de abajo). Fail-closed: si no es owner
-  // o la RPC no existe, se redirige a /pos.
+  // Rutas OWNER (panel super-admin): solo el owner entra. Se valida leyendo la
+  // columna es_owner de perfiles (lectura probada, sin depender de la RPC ni del
+  // caché de esquema de PostgREST). Fail-closed: sin flag/perfil → /pos.
   if (session && OWNER_PATHS.some(path => pathname.startsWith(path))) {
     let owner = false
     try {
-      const { data: isOwner, error: ownerErr } = await supabase.rpc('is_owner' as never)
-      if (!ownerErr && isOwner === true) owner = true
+      const { data: prof } = await supabase
+        .from('perfiles')
+        .select('es_owner')
+        .eq('id', session.user.id)
+        .single()
+      if ((prof as { es_owner?: boolean } | null)?.es_owner === true) owner = true
     } catch { /* fail-closed */ }
     if (!owner) {
       return NextResponse.redirect(new URL('/pos', request.url))

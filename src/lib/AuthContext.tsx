@@ -131,9 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false
 
     ;(async () => {
+      // es_owner se lee directo de la columna (no vía RPC is_owner): la lectura
+      // de perfiles ya está probada que funciona, mientras que la RPC dependía
+      // del caché de esquema de PostgREST.
       const { data, error } = await supabase
         .from('perfiles')
-        .select('id, full_name, role')
+        .select('id, full_name, role, es_owner')
         .eq('id', user.id)
         .single()
 
@@ -142,21 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('[AuthContext] profile fetch error:', error)
         return
       }
-      if (!data) return
-
-      // es_owner se deriva de la RPC is_owner() (no de una columna en el select)
-      // para no romper en BDs donde la columna/función no existe: fail-open a false.
-      let esOwner = false
-      try {
-        const rpc = supabase.rpc as unknown as (
-          name: string
-        ) => Promise<{ data: boolean | null; error: unknown | null }>
-        const { data: owner, error: ownerErr } = await rpc('is_owner')
-        if (!ownerErr && owner === true) esOwner = true
-      } catch { /* fail-open: no owner */ }
-
-      if (cancelled) return
-      setProfile({ ...(data as UserProfile), es_owner: esOwner })
+      if (data) setProfile(data as unknown as UserProfile)
     })()
 
     return () => { cancelled = true }
@@ -362,11 +351,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return
     const { data } = await supabase
       .from('perfiles')
-      .select('id, full_name, role')
+      .select('id, full_name, role, es_owner')
       .eq('id', user.id)
       .single()
-    // Preservar es_owner (no viene en el select; se derivó de is_owner() al cargar).
-    if (data) setProfile(prev => ({ ...(data as UserProfile), es_owner: prev?.es_owner }))
+    if (data) setProfile(data as unknown as UserProfile)
   }
 
   const value: AuthContextType = {
