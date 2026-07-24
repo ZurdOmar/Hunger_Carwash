@@ -365,7 +365,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select('id, full_name, role')
       .eq('id', user.id)
       .single()
-    if (data) setProfile(data as UserProfile)
+    // Preservar es_owner (no viene en el select; se derivó de is_owner() al cargar).
+    if (data) setProfile(prev => ({ ...(data as UserProfile), es_owner: prev?.es_owner }))
   }
 
   const value: AuthContextType = {
