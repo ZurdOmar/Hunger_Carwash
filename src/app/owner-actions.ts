@@ -110,39 +110,52 @@ export async function createDemoUserAction(
   }
 }
 
-/** Cambiar/quitar la vigencia de un usuario demo. */
-export async function setVigenciaAction(userId: string, vigenciaISO: string | null) {
-  await assertOwner()
-  if (!UUID_RE.test(userId)) throw new Error('ID de usuario inválido')
-  const vigencia = parseVigencia(vigenciaISO)
+/** Cambiar/ampliar/reducir/quitar la vigencia de un usuario demo. */
+export async function setVigenciaAction(
+  userId: string,
+  vigenciaISO: string | null
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await assertOwner()
+    if (!UUID_RE.test(userId)) return { ok: false, error: 'ID de usuario inválido' }
+    const vigencia = parseVigencia(vigenciaISO)
 
-  const admin = createAdminClient()
-  const { error } = await admin
-    .from('perfiles')
-    .update({ vigencia_hasta: vigencia } as never)
-    .eq('id', userId)
-  if (error) throw new Error(error.message || 'No se pudo actualizar la vigencia')
-  return { success: true }
+    const admin = createAdminClient()
+    const { error } = await admin
+      .from('perfiles')
+      .update({ vigencia_hasta: vigencia } as never)
+      .eq('id', userId)
+    if (error) return { ok: false, error: error.message || 'No se pudo actualizar la vigencia' }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Error al actualizar la vigencia' }
+  }
 }
 
 /** Eliminar un usuario demo (cascada borra su perfil). No permite borrar owners. */
-export async function deleteDemoUserAction(userId: string) {
-  await assertOwner()
-  if (!UUID_RE.test(userId)) throw new Error('ID de usuario inválido')
+export async function deleteDemoUserAction(
+  userId: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await assertOwner()
+    if (!UUID_RE.test(userId)) return { ok: false, error: 'ID de usuario inválido' }
 
-  const admin = createAdminClient()
-  const { data: target } = await admin
-    .from('perfiles')
-    .select('es_owner')
-    .eq('id', userId)
-    .single()
-  if ((target as { es_owner?: boolean } | null)?.es_owner === true) {
-    throw new Error('No puedes eliminar a un owner')
+    const admin = createAdminClient()
+    const { data: target } = await admin
+      .from('perfiles')
+      .select('es_owner')
+      .eq('id', userId)
+      .single()
+    if ((target as { es_owner?: boolean } | null)?.es_owner === true) {
+      return { ok: false, error: 'No puedes eliminar a un owner' }
+    }
+
+    const { error } = await admin.auth.admin.deleteUser(userId)
+    if (error) return { ok: false, error: error.message || 'No se pudo eliminar el usuario' }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Error al eliminar el usuario' }
   }
-
-  const { error } = await admin.auth.admin.deleteUser(userId)
-  if (error) throw new Error(error.message || 'No se pudo eliminar el usuario')
-  return { success: true }
 }
 
 /** Lista de usuarios demo (no-owner) con email y vigencia. */

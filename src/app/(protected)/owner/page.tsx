@@ -125,9 +125,9 @@ export default function OwnerPage() {
   const doSetVigencia = async (u: DemoUser, localValue: string) => {
     setBusy(`vig-${u.id}`)
     try {
-      await setVigenciaAction(u.id, localToISO(localValue))
-      toast.success('Vigencia actualizada')
-      await refresh()
+      const res = await setVigenciaAction(u.id, localToISO(localValue))
+      if (res.ok) { toast.success('Vigencia actualizada'); await refresh() }
+      else toast.error(res.error || 'No se pudo actualizar la vigencia')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo actualizar la vigencia')
     } finally {
@@ -138,9 +138,9 @@ export default function OwnerPage() {
   const doDelete = async (u: DemoUser) => {
     setBusy(`del-${u.id}`)
     try {
-      await deleteDemoUserAction(u.id)
-      toast.success('Usuario eliminado')
-      await refresh()
+      const res = await deleteDemoUserAction(u.id)
+      if (res.ok) { toast.success('Usuario eliminado'); await refresh() }
+      else toast.error(res.error || 'No se pudo eliminar')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
     } finally {
