@@ -286,10 +286,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // si la RPC no existe (proyectos sin trial, p.ej. producción) o si falla.
     // La función no está en los tipos generados → cast tipado (sin `any`).
     try {
-      const rpc = supabase.rpc as unknown as (
-        name: string
-      ) => Promise<{ data: boolean | null; error: unknown | null }>
-      const { data: trialActive, error: trialErr } = await rpc('is_trial_active')
+      // Llamar .rpc() sobre el objeto (conservar `this`), no como función suelta.
+      const client = supabase as unknown as {
+        rpc: (name: string) => Promise<{ data: boolean | null; error: unknown | null }>
+      }
+      const { data: trialActive, error: trialErr } = await client.rpc('is_trial_active')
       if (!trialErr && trialActive === false) {
         signOut('trial_expired')
         return false

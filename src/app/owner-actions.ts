@@ -34,10 +34,13 @@ async function assertOwner(): Promise<string> {
 /** Llama una RPC no tipada con la sesión del owner. Devuelve el mensaje de error o null. */
 async function ownerRpc(name: string): Promise<string | null> {
   const supabase = await createServerSupabaseClient()
-  const rpc = supabase.rpc as unknown as (
-    n: string
-  ) => Promise<{ data: unknown; error: { message?: string } | null }>
-  const { error } = await rpc(name)
+  // Importante: llamar .rpc() SOBRE el objeto (no como función suelta) para no
+  // perder el `this` interno del cliente (usa this.rest → si no, revienta con
+  // "Cannot read properties of undefined (reading 'rest')").
+  const client = supabase as unknown as {
+    rpc: (n: string) => Promise<{ data: unknown; error: { message?: string } | null }>
+  }
+  const { error } = await client.rpc(name)
   return error ? (error.message || `Error en ${name}`) : null
 }
 
