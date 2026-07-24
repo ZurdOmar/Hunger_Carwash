@@ -31,14 +31,14 @@ async function assertOwner(): Promise<string> {
   return session.user.id
 }
 
-/** Llama una RPC no tipada con la sesión del owner (SECURITY DEFINER valida is_owner). */
-async function ownerRpc(name: string): Promise<void> {
+/** Llama una RPC no tipada con la sesión del owner. Devuelve el mensaje de error o null. */
+async function ownerRpc(name: string): Promise<string | null> {
   const supabase = await createServerSupabaseClient()
   const rpc = supabase.rpc as unknown as (
     n: string
   ) => Promise<{ data: unknown; error: { message?: string } | null }>
   const { error } = await rpc(name)
-  if (error) throw new Error(error.message || `Error en ${name}`)
+  return error ? (error.message || `Error en ${name}`) : null
 }
 
 function parseVigencia(vigenciaISO: string | null): string | null {
@@ -56,51 +56,55 @@ export async function createDemoUserAction(
   password: string,
   vigenciaISO: string | null,
   fullName?: string
-) {
-  const ownerId = await assertOwner()
+): Promise<{ ok: boolean; error?: string; email?: string }> {
+  try {
+    const ownerId = await assertOwner()
 
-  const cleanEmail = (email || '').toLowerCase().trim()
-  if (!EMAIL_RE.test(cleanEmail) || cleanEmail.length > 254) {
-    throw new Error('Correo inválido')
+    const cleanEmail = (email || '').toLowerCase().trim()
+    if (!EMAIL_RE.test(cleanEmail) || cleanEmail.length > 254) {
+      return { ok: false, error: 'Correo inválido' }
+    }
+    if (!password || password.length < 8 || password.length > 128) {
+      return { ok: false, error: 'La contraseña debe tener entre 8 y 128 caracteres' }
+    }
+    const vigencia = parseVigencia(vigenciaISO)
+
+    const admin = createAdminClient()
+
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email: cleanEmail,
+      password,
+      email_confirm: true,
+      user_metadata: { password_set: true, full_name: fullName?.trim() || null },
+    })
+    if (createErr || !created?.user) {
+      return { ok: false, error: createErr?.message || 'No se pudo crear el usuario' }
+    }
+
+    const newId = created.user.id
+
+    // El trigger handle_new_user ya creó el perfil (rol cajero); lo elevamos a
+    // admin y le fijamos la vigencia y quién lo creó. upsert por si hubiera carrera.
+    const { error: upErr } = await admin
+      .from('perfiles')
+      .upsert(
+        {
+          id: newId,
+          full_name: fullName?.trim() || cleanEmail,
+          role: 'admin',
+          activo: true,
+          es_owner: false,
+          vigencia_hasta: vigencia,
+          creado_por: ownerId,
+        } as never,
+        { onConflict: 'id' }
+      )
+    if (upErr) return { ok: false, error: upErr.message || 'No se pudo configurar el perfil demo' }
+
+    return { ok: true, email: cleanEmail }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Error al crear la demo' }
   }
-  if (!password || password.length < 8 || password.length > 128) {
-    throw new Error('La contraseña debe tener entre 8 y 128 caracteres')
-  }
-  const vigencia = parseVigencia(vigenciaISO)
-
-  const admin = createAdminClient()
-
-  const { data: created, error: createErr } = await admin.auth.admin.createUser({
-    email: cleanEmail,
-    password,
-    email_confirm: true,
-    user_metadata: { password_set: true, full_name: fullName?.trim() || null },
-  })
-  if (createErr || !created?.user) {
-    throw new Error(createErr?.message || 'No se pudo crear el usuario')
-  }
-
-  const newId = created.user.id
-
-  // El trigger handle_new_user ya creó el perfil (rol cajero); lo elevamos a
-  // admin y le fijamos la vigencia y quién lo creó. upsert por si hubiera carrera.
-  const { error: upErr } = await admin
-    .from('perfiles')
-    .upsert(
-      {
-        id: newId,
-        full_name: fullName?.trim() || cleanEmail,
-        role: 'admin',
-        activo: true,
-        es_owner: false,
-        vigencia_hasta: vigencia,
-        creado_por: ownerId,
-      } as never,
-      { onConflict: 'id' }
-    )
-  if (upErr) throw new Error(upErr.message || 'No se pudo configurar el perfil demo')
-
-  return { success: true, userId: newId, email: cleanEmail }
 }
 
 /** Cambiar/quitar la vigencia de un usuario demo. */
@@ -173,15 +177,23 @@ export async function listDemoUsersAction() {
 }
 
 /** Generar respaldo (snapshot de datos a demo_bak). */
-export async function snapshotDemoAction() {
-  await assertOwner()
-  await ownerRpc('demo_snapshot')
-  return { success: true }
+export async function snapshotDemoAction(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await assertOwner()
+    const err = await ownerRpc('demo_snapshot')
+    return err ? { ok: false, error: err } : { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Error al generar el respaldo' }
+  }
 }
 
 /** Restaurar respaldo (datos desde demo_bak). No toca perfiles ni usuarios. */
-export async function restoreDemoAction() {
-  await assertOwner()
-  await ownerRpc('demo_restore')
-  return { success: true }
+export async function restoreDemoAction(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await assertOwner()
+    const err = await ownerRpc('demo_restore')
+    return err ? { ok: false, error: err } : { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Error al restaurar el respaldo' }
+  }
 }

@@ -84,6 +84,7 @@ export default function OwnerPage() {
     setBusy('create')
     try {
       const res = await createDemoUserAction(email, password, localToISO(vigencia), fullName || undefined)
+      if (!res.ok) { toast.error(res.error || 'No se pudo crear la demo'); return }
       toast.success(`Demo creada: ${res.email}`)
       setEmail(''); setPassword(''); setFullName(''); setVigencia('')
       await refresh()
@@ -103,15 +104,21 @@ export default function OwnerPage() {
 
   const doSnapshot = async () => {
     setBusy('snapshot')
-    try { await snapshotDemoAction(); toast.success('Respaldo generado') }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo generar el respaldo') }
+    try {
+      const res = await snapshotDemoAction()
+      if (res.ok) toast.success('Respaldo generado')
+      else toast.error(res.error || 'No se pudo generar el respaldo')
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo generar el respaldo') }
     finally { setBusy(null) }
   }
 
   const doRestore = async () => {
     setBusy('restore')
-    try { await restoreDemoAction(); toast.success('Datos restaurados al respaldo') }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo restaurar') }
+    try {
+      const res = await restoreDemoAction()
+      if (res.ok) toast.success('Datos restaurados al respaldo')
+      else toast.error(res.error || 'No se pudo restaurar')
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo restaurar') }
     finally { setBusy(null) }
   }
 
